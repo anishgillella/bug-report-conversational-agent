@@ -1,0 +1,122 @@
+[
+  {
+    "bug_id": 1,
+    "description": "User authentication fails when using special characters in password",
+    "assigned_dev": 1,
+    "status": "Resolved",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production",
+    "solved": true
+  },
+  {
+    "bug_id": 2,
+    "description": "Database connection timeout after 30 seconds of inactivity",
+    "assigned_dev": 2,
+    "status": "In Progress",
+    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling",
+    "solved": false
+  },
+  {
+    "bug_id": 3,
+    "description": "Mobile app crashes when uploading large images (>10MB)",
+    "assigned_dev": 3,
+    "status": "Testing",
+    "progress_notes": "2024-01-18 10:00:00 - Reproduced crash with 15MB image\n2024-01-18 14:30:00 - Implemented image compression algorithm\n2024-01-19 09:45:00 - Added memory management improvements\n2024-01-19 15:20:00 - Testing compression with various image formats",
+    "solved": true
+  },
+  {
+    "bug_id": 4,
+    "description": "API rate limiting not working for premium users",
+    "assigned_dev": 4,
+    "status": "Open",
+    "progress_notes": "2024-01-22 10:30:00 - Reviewed rate limiting configuration\n2024-01-22 14:15:00 - Found issue with user tier detection",
+    "solved": false
+  },
+  {
+    "bug_id": 5,
+    "description": "Email notifications not being sent for bug updates",
+    "assigned_dev": 1,
+    "status": "Resolved",
+    "progress_notes": "2024-01-12 09:00:00 - Investigated SMTP server logs\n2024-01-12 11:45:00 - Found authentication issue with email service\n2024-01-13 08:30:00 - Updated SMTP credentials\n2024-01-13 10:15:00 - Added retry logic for failed sends\n2024-01-13 16:00:00 - Tested notification delivery",
+    "solved": true
+  },
+  {
+    "bug_id": 6,
+    "description": "Search functionality returns incorrect results for partial matches",
+    "assigned_dev": 5,
+    "status": "In Progress",
+    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic",
+    "solved": false
+  },
+  {
+    "bug_id": 7,
+    "description": "User profile pictures not displaying in dark mode",
+    "assigned_dev": 6,
+    "status": "Closed",
+    "progress_notes": "2024-01-10 14:00:00 - Reproduced issue in dark mode\n2024-01-10 16:30:00 - Updated CSS filters for dark mode\n2024-01-11 09:45:00 - Tested across different browsers\n2024-01-11 11:30:00 - Deployed fix and verified resolution",
+    "solved": true
+  },
+  {
+    "bug_id": 8,
+    "description": "Payment processing fails for international credit cards",
+    "assigned_dev": 7,
+    "status": "Testing",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards",
+    "solved": true
+  },
+  {
+    "bug_id": 9,
+    "description": "File upload progress bar shows incorrect percentage",
+    "assigned_dev": 2,
+    "status": "Open",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic",
+    "solved": false
+  },
+  {
+    "bug_id": 10,
+    "description": "Dashboard widgets not refreshing automatically",
+    "assigned_dev": 8,
+    "status": "Resolved",
+    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality",
+    "solved": true
+  },
+  {
+    "bug_id": 11,
+    "description": "Login page redirects to wrong URL after successful authentication",
+    "assigned_dev": 3,
+    "status": "In Progress",
+    "progress_notes": "2024-01-28 09:00:00 - Analyzed authentication flow\n2024-01-28 11:15:00 - Found redirect URL configuration issue\n2024-01-29 08:45:00 - Started fixing redirect logic",
+    "solved": false
+  },
+  {
+    "bug_id": 12,
+    "description": "Export functionality generates corrupted CSV files",
+    "assigned_dev": 4,
+    "status": "Resolved",
+    "progress_notes": "2024-01-16 10:30:00 - Reproduced CSV corruption issue\n2024-01-16 14:00:00 - Fixed encoding problems\n2024-01-17 09:15:00 - Added proper CSV headers\n2024-01-17 11:45:00 - Tested export with various data types",
+    "solved": true
+  },
+  {
+    "bug_id": 13,
+    "description": "Mobile app notifications not appearing on iOS devices",
+    "assigned_dev": 5,
+    "status": "Testing",
+    "progress_notes": "2024-01-21 08:00:00 - Tested notifications on iOS simulator\n2024-01-21 10:30:00 - Updated push notification service config\n2024-01-22 09:15:00 - Modified APNs certificate handling\n2024-01-22 14:30:00 - Testing on physical iOS devices",
+    "solved": true
+  },
+  {
+    "bug_id": 14,
+    "description": "User roles and permissions not being enforced correctly",
+    "assigned_dev": 6,
+    "status": "Open",
+    "progress_notes": "2024-01-29 10:00:00 - Reviewed permission system architecture\n2024-01-29 13:30:00 - Identified role validation gaps",
+    "solved": false
+  },
+  {
+    "bug_id": 15,
+    "description": "Performance issues with large dataset queries",
+    "assigned_dev": 7,
+    "status": "Resolved",
+    "progress_notes": "2024-01-17 08:45:00 - Profiled slow database queries\n2024-01-17 12:30:00 - Added strategic database indexes\n2024-01-18 09:00:00 - Optimized query execution plans\n2024-01-18 14:15:00 - Implemented query result caching\n2024-01-19 10:30:00 - Verified performance improvements",
+    "solved": true
+  }
+]
