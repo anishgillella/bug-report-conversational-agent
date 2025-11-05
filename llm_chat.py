@@ -27,6 +27,14 @@ class ConversationOutput(BaseModel):
     report: Optional[BugReport] = Field(None, description="Bug report if successful")
 
 
+class ExtractedInfo(BaseModel):
+    """Extracted information from conversation."""
+    developer_id: Optional[int] = Field(None, description="Developer ID")
+    bug_id: Optional[int] = Field(None, description="Bug ID")
+    progress_note: Optional[str] = Field(None, description="Work performed on bug")
+    solved: Optional[bool] = Field(None, description="Whether bug is solved")
+
+
 class BugReportingBot:
     """Conversational bot for bug reporting through OpenRouter LLM."""
     
@@ -392,7 +400,7 @@ Keep responses natural and conversational."""
     def _extract_information(self):
         """
         Extract information by asking the LLM to parse the conversation.
-        This is simpler than pattern matching and handles natural language better.
+        Uses Pydantic models for validation.
         """
         if not self.messages or len(self.messages) < 2:
             return
@@ -406,8 +414,11 @@ Keep responses natural and conversational."""
   "solved": <true/false or null>
 }
 
-Look through the conversation. If developer was mentioned, find their ID. If a bug was discussed, get the bug ID.
-If the user described work they did, capture that as progress_note. If they said whether it's solved, set solved to true/false.
+IMPORTANT: 
+- Look at the ENTIRE conversation history, especially recent messages
+- If the user said "Yes" when asked if it's solved, set solved to true
+- If the user said "No" when asked if it's solved, set solved to false
+- Find the LATEST/MOST RECENT status, not old messages
 
 Return ONLY valid JSON, nothing else."""
 
@@ -423,18 +434,22 @@ Return ONLY valid JSON, nothing else."""
             import json
             data = json.loads(result_text)
             
-            # Update fields only if we found new information
-            if data.get("developer_id") and not self.developer_id:
-                self.developer_id = data["developer_id"]
+            # Validate with Pydantic model
+            extracted = ExtractedInfo(**data)
             
-            if data.get("bug_id") and not self.selected_bug_id:
-                self.selected_bug_id = data["bug_id"]
+            # Update fields - ALWAYS update solved status (most recent is most accurate)
+            if extracted.developer_id and not self.developer_id:
+                self.developer_id = extracted.developer_id
             
-            if data.get("progress_note") and not self.progress_note:
-                self.progress_note = data["progress_note"]
+            if extracted.bug_id and not self.selected_bug_id:
+                self.selected_bug_id = extracted.bug_id
             
-            if data.get("solved") is not None and self.solved is None:
-                self.solved = data["solved"]
+            if extracted.progress_note and not self.progress_note:
+                self.progress_note = extracted.progress_note
+            
+            # ALWAYS update solved - it can change as conversation progresses
+            if extracted.solved is not None:
+                self.solved = extracted.solved
                 
         except Exception as e:
             # If LLM extraction fails, silently continue
