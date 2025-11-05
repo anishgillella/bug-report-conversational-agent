@@ -74,6 +74,9 @@ class BugReportingBot:
         
         # Conversation trace for logging
         self.trace: List[Dict[str, Any]] = []
+        
+        # Track completed reports for multiple updates
+        self.completed_reports: List[BugReport] = []
     
     def _get_system_prompt(self) -> str:
         """
@@ -113,13 +116,20 @@ BUG SELECTION IS CRITICAL:
    - Confirm their selection before proceeding
    - If they mention a bug that's not in their list, remind them of their assigned bugs
 
+CRITICAL - SOLVED STATUS CONFIRMATION:
+- NEVER assume a bug is solved just because the user described the fix
+- You MUST explicitly ask: "Is this bug now solved?" or "Has this bug been resolved?"
+- WAIT for an explicit YES/NO response
+- Only mark solved=true if the user clearly says YES, CONFIRMED, FIXED, or similar affirmative
+- If you're unsure, ask again: "To confirm, is Bug #X now solved?"
+
 Guidelines:
 - Be concise and professional
 - Ask one question at a time
 - When a developer mentions a bug or work, extract the key information
 - Do NOT try to help solve the bug - you're just gathering reports
 - Be skeptical of vague responses and ask for clarification
-- Confirm the final status (solved or not) before concluding
+- REQUIRE explicit confirmation for solved status - don't infer it from work descriptions
 - When confirming a partial name match, show the suggestion clearly and wait for explicit confirmation
 - When asking for bug selection, be clear and explicit - don't assume they'll pick one automatically
 
@@ -367,16 +377,30 @@ Keep responses natural and conversational."""
             # Extract information from this user message FIRST
             self._extract_information()
             
+            # Check if we have a complete report (developer, bug, progress, AND explicit solved status)
+            has_complete_report = (
+                self.developer_id is not None and
+                self.selected_bug_id is not None and
+                self.progress_note is not None and
+                self.solved is not None
+            )
+            
+            # If we have a complete report, save it and ask if user has more
+            if has_complete_report and self.selected_bug_id not in [r.bug_id for r in self.completed_reports]:
+                report = BugReport(
+                    bug_id=self.selected_bug_id,
+                    progress_note=self.progress_note,
+                    solved=self.solved
+                )
+                self.completed_reports.append(report)
+                self._reset_for_next_report()
+            
             # Check if user wants to end conversation BEFORE generating bot response
-            # This prevents unnecessary back-and-forth
             should_end = self._should_end_conversation()
             
             if should_end:
-                # Extract final information before ending
-                self._extract_information()
-                
                 # Give final summary before ending
-                farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
+                farewell_msg = "Thank you for your detailed updates! I've successfully gathered all the necessary information. Your reports are now ready to be submitted to the bug tracking system."
                 print(f"\nBot: {farewell_msg}\n")
                 self.messages.append({"role": "assistant", "content": farewell_msg})
                 self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
@@ -456,6 +480,12 @@ Return ONLY valid JSON, nothing else."""
             # The information will be extracted on next turn
             pass
     
+    def _reset_for_next_report(self) -> None:
+        """Reset state after a successful report for the next bug report."""
+        self.selected_bug_id = None
+        self.progress_note = None
+        self.solved = None
+    
     def _should_end_conversation(self) -> bool:
         """
         Check if the user has indicated they want to end the conversation.
@@ -472,12 +502,9 @@ Return ONLY valid JSON, nothing else."""
         if not last_user_msg:
             return False
         
-        # Don't end if we don't have all required info yet
-        has_required_info = (
-            self.developer_id is not None and
-            self.selected_bug_id is not None
-        )
-        if not has_required_info:
+        # Only end if we have at least one completed report and user says they're done
+        # Don't require all fields to be set - user might be done after first report
+        if not self.completed_reports:
             return False
         
         # Simple direct check first - common end signals
@@ -521,7 +548,14 @@ Answer with ONLY 'YES' or 'NO'."""
         
         Returns a ConversationOutput object with validation.
         """
-        # Extract any remaining information
+        # If we have completed reports, return the first one
+        if self.completed_reports:
+            return ConversationOutput(
+                success=True,
+                report=self.completed_reports[0]  # Return first report
+            )
+        
+        # Fallback: extract any remaining information
         self._extract_information()
         
         # Determine if we have all required fields
