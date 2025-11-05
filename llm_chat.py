@@ -447,47 +447,21 @@ Keep responses natural and conversational."""
                 is_confirmed = self._check_confirmation(confirmation_input)
                 
                 if is_confirmed:
-                    # User confirmed, ask if they want to update more bugs
+                    # User confirmed the report, now let LLM naturally ask about more bugs
+                    # Reset state for next bug (if user wants to continue)
+                    self.selected_bug_id = None
+                    self.progress_note = None
+                    self.status = None
+                    self.solved = None
+                    
+                    # Ask if they want to update more bugs and let LLM handle the continuation naturally
                     more_bugs_msg = "Great! Would you like to update any other bugs, or are we all set?"
                     print(f"\nBot: {more_bugs_msg}\n")
                     self.messages.append({"role": "assistant", "content": more_bugs_msg})
                     self.trace.append({"type": "message", "role": "assistant", "content": more_bugs_msg})
                     
-                    # Wait for user response
-                    print("You: ", end="", flush=True)
-                    more_input = input().strip()
-                    
-                    if not more_input:
-                        continue
-                    
-                    self.turn_count += 1
-                    self.add_user_message(more_input)
-                    self.trace.append({"type": "message", "role": "user", "content": more_input})
-                    
-                    # Check if user wants to continue
-                    wants_more = self._check_wants_more_bugs(more_input)
-                    
-                    if not wants_more:
-                        # User is done, show final JSON and exit
-                        farewell_msg = "Perfect! Your bug reports are now ready to be submitted to the bug tracking system."
-                        print(f"\nBot: {farewell_msg}\n")
-                        self.messages.append({"role": "assistant", "content": farewell_msg})
-                        self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
-                        break
-                    else:
-                        # User wants to update more bugs, reset state and continue
-                        # Reset developer_id to allow picking another developer's bug or same developer
-                        self.selected_bug_id = None
-                        self.progress_note = None
-                        self.status = None
-                        self.solved = None
-                        
-                        # Ask which bug they want to report on
-                        continue_msg = f"Great! Let's update another bug. Which bug would you like to report on next?"
-                        print(f"\nBot: {continue_msg}\n")
-                        self.messages.append({"role": "assistant", "content": continue_msg})
-                        self.trace.append({"type": "message", "role": "assistant", "content": continue_msg})
-                        continue
+                    # Don't read input here - continue the main loop to get the next user input naturally
+                    continue
                 else:
                     # User wants to make changes, continue conversation to fix data
                     correction_msg = "No problem! What would you like to correct or add?"
@@ -679,10 +653,34 @@ Return ONLY valid JSON, nothing else."""
         context = "\n".join(recent_msgs)
         
         # Ask a separate LLM to determine if user wants to end
+        # Check if the last bot message was asking about more bugs
+        last_bot_msg = None
+        for msg in reversed(self.messages):
+            if msg.get("role") == "assistant":
+                last_bot_msg = msg.get("content", "").lower()
+                break
+        
+        # If bot was asking "Would you like to update any other bugs?" or similar,
+        # then "No" means end, "Yes" means continue
+        if last_bot_msg and any(phrase in last_bot_msg for phrase in [
+            "would you like to update any other bugs",
+            "any other bugs",
+            "more bugs",
+            "anything else"
+        ]):
+            # In this context, only "no" variations should end
+            if any(word in last_user_msg for word in ["no", "nope", "that's it", "we're done", "we are done"]):
+                return True
+            # "Yes" or other positive responses mean continue
+            return False
+        
+        # For other contexts, use LLM to decide
         end_check_prompt = f"""Recent conversation:
 {context}
 
-Does the user's most recent message indicate they want to END and submit the report?
+Based on the context, does the user's most recent message indicate they want to END and submit the reports?
+- If they're asking about more bugs or continuing work, answer NO
+- If they're saying "no more", "that's all", "i'm done", etc., answer YES
 Answer with ONLY 'YES' or 'NO'."""
 
         try:

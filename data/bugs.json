@@ -20,7 +20,7 @@
     "description": "Mobile app crashes when uploading large images (>10MB)",
     "assigned_dev": 3,
     "status": "Testing",
-    "progress_notes": "2024-01-18 10:00:00 - Reproduced crash with 15MB image\n2024-01-18 14:30:00 - Implemented image compression algorithm\n2024-01-19 09:45:00 - Added memory management improvements\n2024-01-19 15:20:00 - Testing compression with various image formats\n2025-11-05 15:17:40 - Updated the OS to work with large images",
+    "progress_notes": "2024-01-18 10:00:00 - Reproduced crash with 15MB image\n2024-01-18 14:30:00 - Implemented image compression algorithm\n2024-01-19 09:45:00 - Added memory management improvements\n2024-01-19 15:20:00 - Testing compression with various image formats\n2025-11-05 15:17:40 - Updated the OS to work with large images\n2025-11-05 15:39:17 - Fixed image compression and memory management",
     "solved": true
   },
   {
@@ -68,7 +68,7 @@
     "description": "File upload progress bar shows incorrect percentage",
     "assigned_dev": 2,
     "status": "Open",
-    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 15:16:24 - Fixed the progress percentage calculation",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 15:16:24 - Fixed the progress percentage calculation\n2025-11-05 15:40:40 - Updated progress calculation\n2025-11-05 15:41:20 - Updated progress calculation",
     "solved": false
   },
   {
