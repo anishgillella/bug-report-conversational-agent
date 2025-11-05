@@ -475,8 +475,8 @@ Keep responses natural and conversational."""
     def _is_conversation_complete(self) -> bool:
         """
         Check if we've gathered enough information to complete the conversation.
-        Returns True when all required fields are collected.
-        Also detects user completion signals like "that's it", "I'm done", etc.
+        Returns True when all required fields are collected and user indicates they're done.
+        Uses LLM reasoning to detect natural conversation endings.
         """
         # Check if we have all required information
         has_all_fields = (
@@ -490,42 +490,39 @@ Keep responses natural and conversational."""
         # (at least 4 turns: name, bug selection, work description, solved status)
         has_enough_turns = self.turn_count >= 4
         
-        # Check for user completion signals
-        completion_detected = False
-        if has_all_fields and has_enough_turns:
-            # Look at the last user message for completion signals
-            for msg in reversed(self.messages):
-                if msg.get("role") == "user":
-                    last_user_msg = msg.get("content", "").lower().strip()
-                    
-                    completion_signals = [
-                        "that's it",
-                        "that is it",
-                        "i'm done",
-                        "i am done",
-                        "done",
-                        "nothing else",
-                        "no more",
-                        "no thats it",
-                        "no that's it",
-                        "that's all",
-                        "that is all",
-                        "all done",
-                        "we're done",
-                        "we are done",
-                        "good to go",
-                        "all set",
-                        "yes please submit",
-                        "ready to submit"
-                    ]
-                    
-                    for signal in completion_signals:
-                        if signal in last_user_msg:
-                            completion_detected = True
-                            break
-                    break
+        if not (has_all_fields and has_enough_turns):
+            return False
         
-        return has_all_fields and has_enough_turns and completion_detected
+        # Use LLM to reason about whether conversation should end
+        # Get recent conversation context
+        recent_messages = self.messages[-6:] if len(self.messages) > 6 else self.messages
+        
+        completion_prompt = """Based on this conversation, should we end the conversation and submit the bug report?
+        
+Consider: Does the user seem to be done reporting? Have they given all necessary information about their bug work?
+
+Answer with only 'YES' or 'NO'."""
+        
+        # Create a temporary message list for the completion check
+        temp_messages = recent_messages + [{"role": "user", "content": completion_prompt}]
+        
+        try:
+            messages_for_llm = [
+                {"role": "system", "content": "You are a brief analyzer. Answer only YES or NO."}
+            ] + temp_messages
+            
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=messages_for_llm,
+                max_tokens=10
+            )
+            
+            answer = response.choices[0].message.content.strip().upper()
+            return "YES" in answer
+        except Exception as e:
+            # If LLM call fails, fall back to simple heuristics
+            # Just end if we have all fields and enough turns
+            return True
     
     def get_structured_output(self) -> ConversationOutput:
         """
