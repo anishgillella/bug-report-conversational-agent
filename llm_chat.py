@@ -379,7 +379,11 @@ Keep responses natural and conversational."""
             self._extract_information()
             
             if self._is_conversation_complete():
-                print("\nConversation complete!")
+                # Give final summary before ending
+                farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
+                print(f"\nBot: {farewell_msg}\n")
+                self.messages.append({"role": "assistant", "content": farewell_msg})
+                self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
                 break
     
     def _extract_information(self):
@@ -462,12 +466,22 @@ Keep responses natural and conversational."""
     
     def _is_conversation_complete(self) -> bool:
         """
-        Check if we've gathered enough information.
-        In a real system, this would be more sophisticated.
+        Check if we've gathered enough information to complete the conversation.
+        Returns True when all required fields are collected.
         """
-        # For now, we'll let the conversation run its course
-        # and generate output based on what was discussed
-        return False
+        # Check if we have all required information
+        has_all_fields = (
+            self.developer_id is not None and
+            self.selected_bug_id is not None and
+            self.progress_note is not None and
+            self.solved is not None
+        )
+        
+        # Also check if we've had enough turns to gather info
+        # (at least 4 turns: name, bug selection, work description, solved status)
+        has_enough_turns = self.turn_count >= 4
+        
+        return has_all_fields and has_enough_turns
     
     def get_structured_output(self) -> ConversationOutput:
         """
