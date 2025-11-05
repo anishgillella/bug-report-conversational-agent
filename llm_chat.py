@@ -25,8 +25,6 @@ class ConversationOutput(BaseModel):
     """Final structured output from conversation."""
     success: bool = Field(..., description="Whether conversation gathered all required info")
     report: Optional[BugReport] = Field(None, description="Bug report if successful")
-    missing_fields: Optional[List[str]] = Field(None, description="Fields missing if unsuccessful")
-    error: Optional[str] = Field(None, description="Error message if unsuccessful")
 
 
 class BugReportingBot:
@@ -567,23 +565,14 @@ Keep responses natural and conversational."""
                     report=report
                 )
             else:
+                # Bug not assigned to this developer
                 return ConversationOutput(
                     success=False,
-                    error="Selected bug is not assigned to this developer"
+                    report=None
                 )
         else:
-            # Collect missing fields
-            missing_fields = []
-            if self.developer_id is None:
-                missing_fields.append("developer_id")
-            if self.selected_bug_id is None:
-                missing_fields.append("selected_bug_id")
-            if self.progress_note is None:
-                missing_fields.append("progress_note")
-            if self.solved is None:
-                missing_fields.append("solved_status")
-            
+            # Not all required fields collected
             return ConversationOutput(
                 success=False,
-                missing_fields=missing_fields
+                report=None
             )
