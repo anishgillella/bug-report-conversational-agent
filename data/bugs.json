@@ -4,7 +4,7 @@
     "description": "User authentication fails when using special characters in password",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 15:38:38 - Fixed password validation",
     "solved": true
   },
   {
@@ -20,7 +20,7 @@
     "description": "Mobile app crashes when uploading large images (>10MB)",
     "assigned_dev": 3,
     "status": "Testing",
-    "progress_notes": "2024-01-18 10:00:00 - Reproduced crash with 15MB image\n2024-01-18 14:30:00 - Implemented image compression algorithm\n2024-01-19 09:45:00 - Added memory management improvements\n2024-01-19 15:20:00 - Testing compression with various image formats",
+    "progress_notes": "2024-01-18 10:00:00 - Reproduced crash with 15MB image\n2024-01-18 14:30:00 - Implemented image compression algorithm\n2024-01-19 09:45:00 - Added memory management improvements\n2024-01-19 15:20:00 - Testing compression with various image formats\n2025-11-05 15:17:40 - Updated the OS to work with large images",
     "solved": true
   },
   {
@@ -59,8 +59,8 @@
     "bug_id": 8,
     "description": "Payment processing fails for international credit cards",
     "assigned_dev": 7,
-    "status": "Testing",
-    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments",
+    "status": "Resolved",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments\n2025-11-05 15:37:14 - Fixed the currency conversion logic and added support for multiple payment gateways.",
     "solved": true
   },
   {
@@ -76,7 +76,7 @@
     "description": "Dashboard widgets not refreshing automatically",
     "assigned_dev": 8,
     "status": "Closed",
-    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality\n2025-11-05 15:00:23 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:05:01 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:11:00 - Fixed and tested",
+    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality\n2025-11-05 15:00:23 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:05:01 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:11:00 - Fixed and tested\n2025-11-05 15:36:33 - Fixed the sorting algorithm and optimized performance",
     "solved": true
   },
   {

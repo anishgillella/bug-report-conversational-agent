@@ -146,7 +146,8 @@ Guidelines:
 - Ask one question at a time
 - ALWAYS ask for progress notes (work done) - this is NOT optional
 - When a developer mentions a bug or work, extract the key information
-- Do NOT try to help solve the bug - you're just gathering reports
+- If the developer asks questions about a bug (e.g., "What was this bug about?"), answer their questions to help them provide context
+- Do NOT try to help solve the bug - you're just gathering reports and answering clarification questions
 - Be skeptical of vague responses and ask for clarification
 - REQUIRE explicit confirmation for solved status - don't infer it from work descriptions
 - When confirming a partial name match, show the suggestion clearly and wait for explicit confirmation
@@ -446,18 +447,59 @@ Keep responses natural and conversational."""
                 is_confirmed = self._check_confirmation(confirmation_input)
                 
                 if is_confirmed:
-                    # User confirmed, proceed to show JSON
-                    farewell_msg = "Perfect! Your bug reports are now ready to be submitted to the bug tracking system."
-                    print(f"\nBot: {farewell_msg}\n")
-                    self.messages.append({"role": "assistant", "content": farewell_msg})
-                    self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
-                    break
+                    # User confirmed, ask if they want to update more bugs
+                    more_bugs_msg = "Great! Would you like to update any other bugs, or are we all set?"
+                    print(f"\nBot: {more_bugs_msg}\n")
+                    self.messages.append({"role": "assistant", "content": more_bugs_msg})
+                    self.trace.append({"type": "message", "role": "assistant", "content": more_bugs_msg})
+                    
+                    # Wait for user response
+                    print("You: ", end="", flush=True)
+                    more_input = input().strip()
+                    
+                    if not more_input:
+                        continue
+                    
+                    self.turn_count += 1
+                    self.add_user_message(more_input)
+                    self.trace.append({"type": "message", "role": "user", "content": more_input})
+                    
+                    # Check if user wants to continue
+                    wants_more = self._check_wants_more_bugs(more_input)
+                    
+                    if not wants_more:
+                        # User is done, show final JSON and exit
+                        farewell_msg = "Perfect! Your bug reports are now ready to be submitted to the bug tracking system."
+                        print(f"\nBot: {farewell_msg}\n")
+                        self.messages.append({"role": "assistant", "content": farewell_msg})
+                        self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
+                        break
+                    else:
+                        # User wants to update more bugs, reset state and continue
+                        # Reset developer_id to allow picking another developer's bug or same developer
+                        self.selected_bug_id = None
+                        self.progress_note = None
+                        self.status = None
+                        self.solved = None
+                        
+                        # Ask which bug they want to report on
+                        continue_msg = f"Great! Let's update another bug. Which bug would you like to report on next?"
+                        print(f"\nBot: {continue_msg}\n")
+                        self.messages.append({"role": "assistant", "content": continue_msg})
+                        self.trace.append({"type": "message", "role": "assistant", "content": continue_msg})
+                        continue
                 else:
-                    # User wants to make changes, continue conversation
+                    # User wants to make changes, continue conversation to fix data
                     correction_msg = "No problem! What would you like to correct or add?"
                     print(f"\nBot: {correction_msg}\n")
                     self.messages.append({"role": "assistant", "content": correction_msg})
                     self.trace.append({"type": "message", "role": "assistant", "content": correction_msg})
+                    
+                    # Reset to allow re-collecting information
+                    self.selected_bug_id = None
+                    self.progress_note = None
+                    self.status = None
+                    self.solved = None
                     continue
             
             # Check if this is the last turn before limit
@@ -576,6 +618,21 @@ Return ONLY valid JSON, nothing else."""
             return False
         
         # Default to no if unclear
+        return False
+    
+    def _check_wants_more_bugs(self, user_response: str) -> bool:
+        """Check if user wants to update more bugs."""
+        response_lower = user_response.lower().strip()
+        
+        # Positive responses (wants more bugs)
+        if any(word in response_lower for word in ["yes", "yep", "yeah", "another", "more", "update", "continue"]):
+            return True
+        
+        # Negative responses (all set)
+        if any(word in response_lower for word in ["no", "nope", "done", "that's it", "all set", "we're done", "that's all"]):
+            return False
+        
+        # Default to no (assume they're done)
         return False
     
     def _reset_for_next_report(self) -> None:
