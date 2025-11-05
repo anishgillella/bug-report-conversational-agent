@@ -407,6 +407,13 @@ Keep responses natural and conversational."""
                     solved=self.solved
                 )
                 self.completed_reports.append(report)
+                
+                # Ask if user has more bugs to report
+                continuation_prompt = self._get_continuation_prompt()
+                print(f"\nBot: {continuation_prompt}\n")
+                self.messages.append({"role": "assistant", "content": continuation_prompt})
+                self.trace.append({"type": "message", "role": "assistant", "content": continuation_prompt})
+                
                 self._reset_for_next_report()
             
             # Check if user wants to end conversation BEFORE generating bot response
@@ -448,23 +455,27 @@ Keep responses natural and conversational."""
 {
   "developer_id": <number or null>,
   "bug_id": <number or null>,
-  "progress_note": "<string or null>",
+  "progress_note": "<string describing ONLY the work done on the bug, NOT the status>",
   "status": "<string or null>",
   "solved": <true/false or null>
 }
 
-IMPORTANT: 
-- Look at the ENTIRE conversation history, especially recent messages
-- Extract TWO separate things:
-  1. STATUS: The workflow state the user mentioned (Open, In Progress, Testing, Resolved, Closed)
-  2. SOLVED: Whether the bug functionally works now (true/false)
-- Examples: "Resolved status but not solved" OR "still In Progress but we believe it's solved"
-- If user said "Resolved" or "Fixed", set status="Resolved"
-- If user said "Open" or "not started", set status="Open"
-- If user said "Testing", set status="Testing"
-- If user said "Yes" to "is it solved?", set solved=true
-- If user said "No" to "is it solved?", set solved=false
-- Find the LATEST/MOST RECENT values, not old messages
+CRITICAL INSTRUCTIONS:
+1. PROGRESS_NOTE: Extract ONLY what work the developer did or what they found
+   - Examples: "Fixed memory leak", "Added caching", "Optimized queries", "Found root cause"
+   - DO NOT include status words like "In Progress", "Resolved", "Open"
+   - DO NOT include answers to "is it solved" (Yes/No answers belong in 'solved' field)
+   - Just the description of the work/investigation
+
+2. STATUS: Extract the workflow state (Open, In Progress, Testing, Resolved, Closed)
+   - If user said "In Progress", set status="In Progress"
+   - If user said "Resolved", set status="Resolved"
+   - Find LATEST status mentioned
+
+3. SOLVED: Extract whether bug functionally works (true/false only)
+   - If user said "Yes" to "is it solved?", set solved=true
+   - If user said "No" to "is it solved?", set solved=false
+   - This is INDEPENDENT from status
 
 Return ONLY valid JSON, nothing else."""
 
@@ -504,6 +515,22 @@ Return ONLY valid JSON, nothing else."""
             # If LLM extraction fails, silently continue
             # The information will be extracted on next turn
             pass
+    
+    def _get_continuation_prompt(self) -> str:
+        """Use LLM to generate a natural continuation prompt asking if user has more bugs."""
+        prompt = """Generate a brief, natural response asking the user if they have any more bugs to report on. 
+        Keep it conversational and friendly. Just return the prompt text, nothing else."""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=50
+            )
+            return response.choices[0].message.content.strip()
+        except Exception:
+            # Fallback if LLM call fails
+            return "Do you have any other bugs you'd like to report on?"
     
     def _reset_for_next_report(self) -> None:
         """Reset state after a successful report for the next bug report."""

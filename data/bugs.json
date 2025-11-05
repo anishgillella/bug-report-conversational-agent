@@ -27,9 +27,9 @@
     "bug_id": 4,
     "description": "API rate limiting not working for premium users",
     "assigned_dev": 4,
-    "status": "Resolved",
-    "progress_notes": "2024-01-22 10:30:00 - Reviewed rate limiting configuration\n2024-01-22 14:15:00 - Found issue with user tier detection\nImproved to pro tier for premium users\nImproved rate limiting for pro tier premium users\nImproved rate limiting for pro tier premium users\nImproved rate limiting for pro tier premium users\n2025-11-05 14:51:32 - Improved rate limiting for pro tier premium users",
-    "solved": true
+    "status": "In Progress",
+    "progress_notes": "2024-01-22 10:30:00 - Reviewed rate limiting configuration\n2024-01-22 14:15:00 - Found issue with user tier detection\n2025-11-05 14:54:32 - It's in progress\n2025-11-05 14:56:00 - Added caching layer to optimize API rate limiting",
+    "solved": false
   },
   {
     "bug_id": 5,
@@ -44,7 +44,7 @@
     "description": "Search functionality returns incorrect results for partial matches",
     "assigned_dev": 5,
     "status": "In Progress",
-    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic",
+    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic\n2025-11-05 14:57:46 - Search functionality returns accurate answers after indexing",
     "solved": false
   },
   {
@@ -68,7 +68,7 @@
     "description": "File upload progress bar shows incorrect percentage",
     "assigned_dev": 2,
     "status": "Open",
-    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 14:42:52 - Fixed the issue for tracking of files and bar shows correct percentage\nFixed the issue for tracking of files and bar shows correct percentage",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic",
     "solved": false
   },
   {
@@ -76,15 +76,15 @@
     "description": "Dashboard widgets not refreshing automatically",
     "assigned_dev": 8,
     "status": "Resolved",
-    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality",
+    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality\n2025-11-05 15:00:23 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:05:01 - Tested with multiple dashboards with clear data pipelines and it works now",
     "solved": true
   },
   {
     "bug_id": 11,
     "description": "Login page redirects to wrong URL after successful authentication",
     "assigned_dev": 3,
-    "status": "In Progress",
-    "progress_notes": "2024-01-28 09:00:00 - Analyzed authentication flow\n2024-01-28 11:15:00 - Found redirect URL configuration issue\n2024-01-29 08:45:00 - Started fixing redirect logic",
+    "status": "Testing",
+    "progress_notes": "2024-01-28 09:00:00 - Analyzed authentication flow\n2024-01-28 11:15:00 - Found redirect URL configuration issue\n2024-01-29 08:45:00 - Started fixing redirect logic\n2025-11-05 15:01:39 - Still testing",
     "solved": false
   },
   {
