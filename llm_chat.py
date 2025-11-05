@@ -356,26 +356,11 @@ Keep responses natural and conversational."""
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
-            # Check if this is the last turn before limit
-            if self.turn_count >= self.max_turns:
-                # Extract any final information from this last message
-                self._extract_information()
-                
-                # Give a graceful exit message
-                exit_msg = f"Thank you for your input! We've reached the conversation limit of {self.max_turns} turns. I'm now preparing your final report based on our discussion."
-                print(f"\nBot: {exit_msg}\n")
-                self.messages.append({"role": "assistant", "content": exit_msg})
-                self.trace.append({"type": "message", "role": "assistant", "content": exit_msg})
-                break
-            
-            # Get bot response
-            bot_response = self.get_bot_response()
-            print(f"\nBot: {bot_response}\n")
-            self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
-            
-            # Check for conversation completion signals
+            # Extract information from this user message
             self._extract_information()
             
+            # Check for conversation completion BEFORE generating response
+            # This ensures we end when user indicates they're done
             if self._is_conversation_complete():
                 # Give final summary before ending
                 farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
@@ -383,6 +368,20 @@ Keep responses natural and conversational."""
                 self.messages.append({"role": "assistant", "content": farewell_msg})
                 self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
                 break
+            
+            # Check if this is the last turn before limit
+            if self.turn_count >= self.max_turns:
+                # Give a graceful exit message
+                exit_msg = f"Thank you for your input! We've reached the conversation limit of {self.max_turns} turns. I'm now preparing your final report based on our discussion."
+                print(f"\nBot: {exit_msg}\n")
+                self.messages.append({"role": "assistant", "content": exit_msg})
+                self.trace.append({"type": "message", "role": "assistant", "content": exit_msg})
+                break
+            
+            # Get bot response only if conversation not complete
+            bot_response = self.get_bot_response()
+            print(f"\nBot: {bot_response}\n")
+            self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
     
     def _extract_information(self):
         """
