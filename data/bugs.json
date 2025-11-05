@@ -75,8 +75,8 @@
     "bug_id": 10,
     "description": "Dashboard widgets not refreshing automatically",
     "assigned_dev": 8,
-    "status": "Resolved",
-    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality\n2025-11-05 15:00:23 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:05:01 - Tested with multiple dashboards with clear data pipelines and it works now",
+    "status": "Closed",
+    "progress_notes": "2024-01-14 09:30:00 - Investigated widget refresh mechanism\n2024-01-14 13:45:00 - Implemented WebSocket connection\n2024-01-15 08:15:00 - Added real-time data updates\n2024-01-15 12:00:00 - Tested automatic refresh functionality\n2025-11-05 15:00:23 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:05:01 - Tested with multiple dashboards with clear data pipelines and it works now\n2025-11-05 15:11:00 - Fixed and tested",
     "solved": true
   },
   {

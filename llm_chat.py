@@ -413,12 +413,40 @@ Keep responses natural and conversational."""
             should_end = self._should_end_conversation()
             
             if should_end:
-                # Give final summary before ending
-                farewell_msg = "Thank you for your detailed updates! I've successfully gathered all the necessary information. Your reports are now ready to be submitted to the bug tracking system."
-                print(f"\nBot: {farewell_msg}\n")
-                self.messages.append({"role": "assistant", "content": farewell_msg})
-                self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
-                break
+                # Generate confirmation summary of all detected information
+                confirmation_msg = self._generate_confirmation_summary()
+                print(f"\nBot: {confirmation_msg}\n")
+                self.messages.append({"role": "assistant", "content": confirmation_msg})
+                self.trace.append({"type": "message", "role": "assistant", "content": confirmation_msg})
+                
+                # Wait for user confirmation
+                print("You: ", end="", flush=True)
+                confirmation_input = input().strip()
+                
+                if not confirmation_input:
+                    continue
+                
+                self.turn_count += 1
+                self.add_user_message(confirmation_input)
+                self.trace.append({"type": "message", "role": "user", "content": confirmation_input})
+                
+                # Check if user confirmed
+                is_confirmed = self._check_confirmation(confirmation_input)
+                
+                if is_confirmed:
+                    # User confirmed, proceed to show JSON
+                    farewell_msg = "Perfect! Your bug reports are now ready to be submitted to the bug tracking system."
+                    print(f"\nBot: {farewell_msg}\n")
+                    self.messages.append({"role": "assistant", "content": farewell_msg})
+                    self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
+                    break
+                else:
+                    # User wants to make changes, continue conversation
+                    correction_msg = "No problem! What would you like to correct or add?"
+                    print(f"\nBot: {correction_msg}\n")
+                    self.messages.append({"role": "assistant", "content": correction_msg})
+                    self.trace.append({"type": "message", "role": "assistant", "content": correction_msg})
+                    continue
             
             # Check if this is the last turn before limit
             if self.turn_count >= self.max_turns:
@@ -504,6 +532,39 @@ Return ONLY valid JSON, nothing else."""
                 
         except Exception as e:
             pass
+    
+    def _generate_confirmation_summary(self) -> str:
+        """Generate a summary of all detected bug reports for user confirmation."""
+        if not self.completed_reports:
+            return "I don't have any bug reports to confirm yet. Could you provide details about the bugs you've been working on?"
+        
+        summary_lines = ["Let me confirm what I've detected:\n"]
+        
+        for i, report in enumerate(self.completed_reports, 1):
+            summary_lines.append(f"**Bug #{i}:**")
+            summary_lines.append(f"  - Bug ID: {report.bug_id}")
+            summary_lines.append(f"  - Status: {report.status}")
+            summary_lines.append(f"  - Solved: {report.solved}")
+            summary_lines.append(f"  - Work Done: {report.progress_note.split(' - ', 1)[1] if ' - ' in report.progress_note else report.progress_note}")
+            summary_lines.append("")
+        
+        summary_lines.append("Is this information correct? (Yes/No)")
+        return "\n".join(summary_lines)
+    
+    def _check_confirmation(self, user_response: str) -> bool:
+        """Check if user confirmed the summary."""
+        response_lower = user_response.lower().strip()
+        
+        # Positive confirmations
+        if any(word in response_lower for word in ["yes", "yep", "yeah", "correct", "that's right", "looks good", "perfect"]):
+            return True
+        
+        # Negative responses
+        if any(word in response_lower for word in ["no", "nope", "incorrect", "wrong", "not correct"]):
+            return False
+        
+        # Default to no if unclear
+        return False
     
     def _reset_for_next_report(self) -> None:
         """Reset state after a successful report for the next bug report."""
