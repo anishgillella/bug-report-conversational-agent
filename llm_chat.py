@@ -356,19 +356,6 @@ Keep responses natural and conversational."""
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
-            # Extract information from this user message
-            self._extract_information()
-            
-            # Check for conversation completion BEFORE generating response
-            # This ensures we end when user indicates they're done
-            if self._is_conversation_complete():
-                # Give final summary before ending
-                farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
-                print(f"\nBot: {farewell_msg}\n")
-                self.messages.append({"role": "assistant", "content": farewell_msg})
-                self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
-                break
-            
             # Check if this is the last turn before limit
             if self.turn_count >= self.max_turns:
                 # Give a graceful exit message
@@ -378,180 +365,111 @@ Keep responses natural and conversational."""
                 self.trace.append({"type": "message", "role": "assistant", "content": exit_msg})
                 break
             
-            # Get bot response only if conversation not complete
+            # Get bot response - let the LLM have the conversation naturally
             bot_response = self.get_bot_response()
             print(f"\nBot: {bot_response}\n")
+            self.messages.append({"role": "assistant", "content": bot_response})
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
+            
+            # Now check if conversation should end (separate model/check)
+            # This happens after bot responds, to check if user wants to end
+            if self._should_end_conversation():
+                # Extract final information before ending
+                self._extract_information()
+                
+                # Give final summary before ending
+                farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
+                print(f"\nBot: {farewell_msg}\n")
+                self.messages.append({"role": "assistant", "content": farewell_msg})
+                self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
+                break
     
     def _extract_information(self):
         """
-        Extract key information from recent messages.
-        Looks for patterns like bug numbers, developer names, and status indicators.
+        Extract information by asking the LLM to parse the conversation.
+        This is simpler than pattern matching and handles natural language better.
         """
-        # Simple pattern-based extraction for now
-        if not self.messages:
+        if not self.messages or len(self.messages) < 2:
             return
         
-        # Check recent user messages for developer name
-        if not self.developer_name:
-            for msg in reversed(self.messages):
-                if msg.get("role") == "user":
-                    content = msg.get("content", "").lower()
-                    # Check against known developer names
-                    for dev in self.data_manager.developers:
-                        if dev["name"].lower() in content:
-                            self.developer_name = dev["name"]
-                            self.developer_id = dev["developer_id"]
-                            break
-                    if self.developer_name:
-                        break
-        
-        # Check for bug selection patterns (Bug #X or just number)
-        if not self.selected_bug_id:
-            # First try to find "Bug #X" pattern
-            conv_text = " ".join([msg.get("content", "") for msg in self.messages])
-            bug_pattern = r"[Bb]ug\s*#?(\d+)"
-            matches = re.findall(bug_pattern, conv_text)
+        # Ask LLM to extract the key information from the conversation
+        extraction_prompt = """Based on this conversation, extract the following information in JSON format:
+{
+  "developer_id": <number or null>,
+  "bug_id": <number or null>,
+  "progress_note": "<string or null>",
+  "solved": <true/false or null>
+}
+
+Look through the conversation. If developer was mentioned, find their ID. If a bug was discussed, get the bug ID.
+If the user described work they did, capture that as progress_note. If they said whether it's solved, set solved to true/false.
+
+Return ONLY valid JSON, nothing else."""
+
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=self.messages + [{"role": "user", "content": extraction_prompt}],
+                max_tokens=200
+            )
             
-            if matches:
-                # Get the most recent bug number
-                self.selected_bug_id = int(matches[-1])
-            else:
-                # If no "Bug" mention, look for standalone numbers in recent user messages
-                for msg in reversed(self.messages):
-                    if msg.get("role") == "user":
-                        content = msg.get("content", "").strip()
-                        # Check if message is just a number (bug ID)
-                        if content.isdigit():
-                            potential_bug_id = int(content)
-                            # Validate it's a real bug ID
-                            if self.data_manager.get_bug_by_id(potential_bug_id):
-                                self.selected_bug_id = potential_bug_id
-                                break
-        
-        # Check for solved status patterns
-        if self.solved is None:
-            # Look at recent messages (both bot and user) for context
-            recent_messages_text = []
-            for msg in reversed(self.messages[-8:]):  # Last 8 messages for context
-                recent_messages_text.append(msg.get("content", "").lower())
+            result_text = response.choices[0].message.content.strip()
+            # Try to parse JSON from the response
+            import json
+            data = json.loads(result_text)
             
-            full_context = " ".join(recent_messages_text)
+            # Update fields only if we found new information
+            if data.get("developer_id") and not self.developer_id:
+                self.developer_id = data["developer_id"]
             
-            # First check for explicit "not solved" phrases
-            not_solved_indicators = ["not solved", "still working", "more work", "not done", "not finished", "still in progress", "not ready"]
-            for indicator in not_solved_indicators:
-                if indicator in full_context:
-                    self.solved = False
-                    break
+            if data.get("bug_id") and not self.selected_bug_id:
+                self.selected_bug_id = data["bug_id"]
             
-            # Then check for solved indicators
-            if self.solved is None:
-                solved_indicators = ["solved", "fixed", "resolved", "done", "success", "confirmed"]
-                for indicator in solved_indicators:
-                    if indicator in full_context:
-                        self.solved = True
-                        break
+            if data.get("progress_note") and not self.progress_note:
+                self.progress_note = data["progress_note"]
             
-            # If still not determined, look for affirmations in recent user-only messages
-            # when the bot was asking about status
-            if self.solved is None:
-                recent_user_msgs = []
-                for msg in reversed(self.messages):
-                    if msg.get("role") == "user":
-                        recent_user_msgs.append(msg.get("content", "").lower())
-                        if len(recent_user_msgs) >= 2:
-                            break
+            if data.get("solved") is not None and self.solved is None:
+                self.solved = data["solved"]
                 
-                recent_user_text = " ".join(recent_user_msgs)
-                
-                # If user just says "yes" or similar, assume they're confirming solved status
-                if recent_user_text.strip() in ["yes", "yep", "yeah", "yup", "correct", "right", "affirmative"]:
-                    # Check if bot was asking about solved/resolved status
-                    if any(word in full_context for word in ["solved", "resolved", "finished", "done"]):
-                        self.solved = True
-        
-        # Collect progress notes from user messages about work done
-        if not self.progress_note:
-            for msg in reversed(self.messages):
-                if msg.get("role") == "user":
-                    content = msg.get("content", "").strip()
-                    # Skip very short messages (like "Yes", "No", numbers, bug IDs)
-                    if len(content) > 10:
-                        # Skip simple affirmations/negations
-                        if content.lower() not in ["yes", "no", "yes please", "no thanks", "correct", "nope", "yep"]:
-                            # Skip bug ID numbers
-                            if not content.isdigit():
-                                self.progress_note = content
-                                break
+        except Exception as e:
+            # If LLM extraction fails, silently continue
+            # The information will be extracted on next turn
+            pass
     
-    def _is_conversation_complete(self) -> bool:
+    def _should_end_conversation(self) -> bool:
         """
-        Check if we've gathered enough information to complete the conversation.
-        Returns True when all required fields are collected and user indicates they're done.
-        Uses LLM reasoning to detect natural conversation endings.
+        Check if the user has indicated they want to end the conversation.
+        This is a separate check from the main conversation.
         """
-        # Check if we have all required information
-        has_all_fields = (
-            self.developer_id is not None and
-            self.selected_bug_id is not None and
-            self.progress_note is not None and
-            self.solved is not None
-        )
-        
-        # Also check if we've had enough turns to gather info
-        # (at least 4 turns: name, bug selection, work description, solved status)
-        has_enough_turns = self.turn_count >= 4
-        
-        if not (has_all_fields and has_enough_turns):
-            return False
-        
-        # Get the last user message to check for completion signals
+        # Get the last user message
         last_user_msg = None
         for msg in reversed(self.messages):
             if msg.get("role") == "user":
-                last_user_msg = msg.get("content", "").lower().strip()
+                last_user_msg = msg.get("content", "").strip()
                 break
         
         if not last_user_msg:
             return False
         
-        # Use LLM to reason about whether conversation should end
-        # Get recent conversation context (include more context for better reasoning)
-        recent_messages = self.messages[-8:] if len(self.messages) > 8 else self.messages
-        
-        completion_prompt = f"""The user just said: "{last_user_msg}"
+        # Ask a separate LLM to determine if user wants to end
+        end_check_prompt = f"""The user just said: "{last_user_msg}"
 
-Given that we have already collected:
-- Developer: {self.developer_id}
-- Bug ID: {self.selected_bug_id}
-- Work done: {self.progress_note}
-- Bug solved: {self.solved}
+Does this indicate the user wants to STOP the conversation and submit their bug report?
+Consider messages like "No", "That's it", "No more bugs", "Nothing else", "I'm done", etc. as YES.
 
-Based on the user's last message and the conversation context, should we END the conversation and submit the report?
+Answer with ONLY 'YES' or 'NO'."""
 
-Answer with ONLY 'YES' or 'NO'. YES means the user is done reporting and we should end."""
-        
-        # Create a temporary message list for the completion check
-        temp_messages = recent_messages + [{"role": "user", "content": completion_prompt}]
-        
         try:
-            messages_for_llm = [
-                {"role": "system", "content": "You are a precise analyzer. Answer with only YES or NO."}
-            ] + temp_messages
-            
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=messages_for_llm,
+                messages=[{"role": "user", "content": end_check_prompt}],
                 max_tokens=5
             )
             
             answer = response.choices[0].message.content.strip().upper()
             return "YES" in answer
-        except Exception as e:
-            # If LLM call fails, fall back to simple heuristics
-            # Just end if we have all fields and enough turns
-            return True
+        except Exception:
+            return False
     
     def get_structured_output(self) -> ConversationOutput:
         """
