@@ -434,25 +434,35 @@ Keep responses natural and conversational."""
         
         # Check for solved status patterns
         if self.solved is None:
-            recent_text = ""
-            for msg in reversed(self.messages[-4:]):  # Last 4 messages
+            # Look at ALL user messages to find solved status
+            recent_user_messages = []
+            for msg in reversed(self.messages):
                 if msg.get("role") == "user":
-                    recent_text = msg.get("content", "").lower()
-                    break
+                    recent_user_messages.append(msg.get("content", "").lower())
+                    if len(recent_user_messages) >= 3:  # Get last 3 user messages
+                        break
             
-            solved_indicators = ["solved", "fixed", "resolved", "done", "working", "yes"]
-            not_solved_indicators = ["not solved", "still working", "more work", "no", "not done", "not finished"]
+            recent_text = " ".join(recent_user_messages)
             
+            # First check for explicit "not solved" phrases
+            not_solved_indicators = ["not solved", "still working", "more work", "not done", "not finished", "still in progress"]
             for indicator in not_solved_indicators:
                 if indicator in recent_text:
                     self.solved = False
-                    break
+                    return
             
-            if self.solved is None:
-                for indicator in solved_indicators:
-                    if indicator in recent_text:
-                        self.solved = True
-                        break
+            # Then check for solved indicators
+            solved_indicators = ["solved", "fixed", "resolved", "done", "works", "working", "success"]
+            for indicator in solved_indicators:
+                if indicator in recent_text:
+                    self.solved = True
+                    return
+            
+            # If user just says "Yes" in context of being asked if solved
+            if recent_text.strip() in ["yes", "yep", "yeah", "yup", "correct", "right"]:
+                # This is likely confirming a previous status question
+                if "not solved" not in recent_text and "still" not in recent_text:
+                    self.solved = True
         
         # Collect progress notes from user messages about work done
         if not self.progress_note:
@@ -468,6 +478,7 @@ Keep responses natural and conversational."""
         """
         Check if we've gathered enough information to complete the conversation.
         Returns True when all required fields are collected.
+        Also detects user completion signals like "that's it", "I'm done", etc.
         """
         # Check if we have all required information
         has_all_fields = (
@@ -481,7 +492,42 @@ Keep responses natural and conversational."""
         # (at least 4 turns: name, bug selection, work description, solved status)
         has_enough_turns = self.turn_count >= 4
         
-        return has_all_fields and has_enough_turns
+        # Check for user completion signals
+        completion_detected = False
+        if has_all_fields and has_enough_turns:
+            # Look at the last user message for completion signals
+            for msg in reversed(self.messages):
+                if msg.get("role") == "user":
+                    last_user_msg = msg.get("content", "").lower().strip()
+                    
+                    completion_signals = [
+                        "that's it",
+                        "that is it",
+                        "i'm done",
+                        "i am done",
+                        "done",
+                        "nothing else",
+                        "no more",
+                        "no thats it",
+                        "no that's it",
+                        "that's all",
+                        "that is all",
+                        "all done",
+                        "we're done",
+                        "we are done",
+                        "good to go",
+                        "all set",
+                        "yes please submit",
+                        "ready to submit"
+                    ]
+                    
+                    for signal in completion_signals:
+                        if signal in last_user_msg:
+                            completion_detected = True
+                            break
+                    break
+        
+        return has_all_fields and has_enough_turns and completion_detected
     
     def get_structured_output(self) -> ConversationOutput:
         """
