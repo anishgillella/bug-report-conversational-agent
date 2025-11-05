@@ -382,9 +382,6 @@ Keep responses natural and conversational."""
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
-            # Extract information from this user message FIRST
-            self._extract_information()
-            
             # Check if we have a complete report (developer, bug, progress, status, AND explicit solved status)
             has_complete_report = (
                 self.developer_id is not None and
@@ -394,7 +391,7 @@ Keep responses natural and conversational."""
                 self.solved is not None
             )
             
-            # If we have a complete report, save it and ask if user has more
+            # If we have a complete report, save it for later
             if has_complete_report and self.selected_bug_id not in [r.bug_id for r in self.completed_reports]:
                 # Create timestamped progress note
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -407,14 +404,10 @@ Keep responses natural and conversational."""
                     solved=self.solved
                 )
                 self.completed_reports.append(report)
-                
-                # Ask if user has more bugs to report
-                continuation_prompt = self._get_continuation_prompt()
-                print(f"\nBot: {continuation_prompt}\n")
-                self.messages.append({"role": "assistant", "content": continuation_prompt})
-                self.trace.append({"type": "message", "role": "assistant", "content": continuation_prompt})
-                
                 self._reset_for_next_report()
+                
+                # The LLM will naturally ask if user has more bugs in its next response
+                # No separate LLM call needed
             
             # Check if user wants to end conversation BEFORE generating bot response
             should_end = self._should_end_conversation()
@@ -441,16 +434,22 @@ Keep responses natural and conversational."""
             print(f"\nBot: {bot_response}\n")
             self.messages.append({"role": "assistant", "content": bot_response})
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
+            
+            # Extract information from the conversation after getting bot response
+            self._extract_info_from_response(bot_response)
     
     def _extract_information(self):
         """
-        Extract information by asking the LLM to parse the conversation.
-        Uses Pydantic models for validation.
+        Extract information from the conversation using a single LLM call during get_bot_response.
+        This method is now a no-op since extraction happens in the main LLM call.
         """
-        if not self.messages or len(self.messages) < 2:
-            return
-        
-        # Ask LLM to extract the key information from the conversation
+        pass
+    
+    def _extract_info_from_response(self, response_text: str):
+        """
+        Extract information from the last bot response using the LLM.
+        This is called after getting a bot response to avoid extra LLM calls.
+        """
         extraction_prompt = """Based on this conversation, extract the following information in JSON format:
 {
   "developer_id": <number or null>,
@@ -465,16 +464,11 @@ CRITICAL INSTRUCTIONS:
    - Examples: "Fixed memory leak", "Added caching", "Optimized queries", "Found root cause"
    - DO NOT include status words like "In Progress", "Resolved", "Open"
    - DO NOT include answers to "is it solved" (Yes/No answers belong in 'solved' field)
-   - Just the description of the work/investigation
 
 2. STATUS: Extract the workflow state (Open, In Progress, Testing, Resolved, Closed)
-   - If user said "In Progress", set status="In Progress"
-   - If user said "Resolved", set status="Resolved"
    - Find LATEST status mentioned
 
 3. SOLVED: Extract whether bug functionally works (true/false only)
-   - If user said "Yes" to "is it solved?", set solved=true
-   - If user said "No" to "is it solved?", set solved=false
    - This is INDEPENDENT from status
 
 Return ONLY valid JSON, nothing else."""
@@ -487,14 +481,12 @@ Return ONLY valid JSON, nothing else."""
             )
             
             result_text = response.choices[0].message.content.strip()
-            # Try to parse JSON from the response
-            import json
             data = json.loads(result_text)
             
             # Validate with Pydantic model
             extracted = ExtractedInfo(**data)
             
-            # Update fields - ALWAYS update mutable fields (they can change as conversation progresses)
+            # Update fields
             if extracted.developer_id and not self.developer_id:
                 self.developer_id = extracted.developer_id
             
@@ -504,7 +496,6 @@ Return ONLY valid JSON, nothing else."""
             if extracted.progress_note and not self.progress_note:
                 self.progress_note = extracted.progress_note
             
-            # ALWAYS update status and solved - they can change during conversation
             if extracted.status:
                 self.status = extracted.status
             
@@ -512,25 +503,7 @@ Return ONLY valid JSON, nothing else."""
                 self.solved = extracted.solved
                 
         except Exception as e:
-            # If LLM extraction fails, silently continue
-            # The information will be extracted on next turn
             pass
-    
-    def _get_continuation_prompt(self) -> str:
-        """Use LLM to generate a natural continuation prompt asking if user has more bugs."""
-        prompt = """Generate a brief, natural response asking the user if they have any more bugs to report on. 
-        Keep it conversational and friendly. Just return the prompt text, nothing else."""
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=50
-            )
-            return response.choices[0].message.content.strip()
-        except Exception:
-            # Fallback if LLM call fails
-            return "Do you have any other bugs you'd like to report on?"
     
     def _reset_for_next_report(self) -> None:
         """Reset state after a successful report for the next bug report."""
