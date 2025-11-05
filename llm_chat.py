@@ -18,6 +18,7 @@ class BugReport(BaseModel):
     """Structured bug report from conversation."""
     bug_id: int = Field(..., description="Unique bug identifier")
     progress_note: str = Field(..., description="Timestamped progress entry")
+    status: str = Field(..., description="Bug status (Open, In Progress, Testing, Resolved, Closed)")
     solved: bool = Field(..., description="Whether bug is solved")
 
 
@@ -32,6 +33,7 @@ class ExtractedInfo(BaseModel):
     developer_id: Optional[int] = Field(None, description="Developer ID")
     bug_id: Optional[int] = Field(None, description="Bug ID")
     progress_note: Optional[str] = Field(None, description="Work performed on bug")
+    status: Optional[str] = Field(None, description="Bug status (Open, In Progress, Testing, Resolved, Closed)")
     solved: Optional[bool] = Field(None, description="Whether bug is solved")
 
 
@@ -70,7 +72,8 @@ class BugReportingBot:
         self.developer_name: Optional[str] = None
         self.selected_bug_id: Optional[int] = None
         self.progress_note: Optional[str] = None
-        self.solved: Optional[bool] = None
+        self.status: Optional[str] = None  # Bug status: Open, In Progress, Testing, Resolved, Closed
+        self.solved: Optional[bool] = None  # Whether bug is actually solved
         
         # Conversation trace for logging
         self.trace: List[Dict[str, Any]] = []
@@ -116,12 +119,17 @@ BUG SELECTION IS CRITICAL:
    - Confirm their selection before proceeding
    - If they mention a bug that's not in their list, remind them of their assigned bugs
 
-CRITICAL - SOLVED STATUS CONFIRMATION:
+CRITICAL - STATUS AND SOLVED CONFIRMATION:
+- STATUS and SOLVED are TWO DIFFERENT things:
+  * STATUS: The workflow state (Open, In Progress, Testing, Resolved, Closed)
+  * SOLVED: Whether the bug functionally works now (true/false)
+- ALWAYS ask both:
+  1. "What is the current status of Bug #X?" (expecting: Open, In Progress, Testing, Resolved, Closed)
+  2. "Is this bug now solved/functional?" (expecting: Yes/No)
 - NEVER assume a bug is solved just because the user described the fix
-- You MUST explicitly ask: "Is this bug now solved?" or "Has this bug been resolved?"
-- WAIT for an explicit YES/NO response
+- Wait for explicit YES/NO response to the solved question
 - Only mark solved=true if the user clearly says YES, CONFIRMED, FIXED, or similar affirmative
-- If you're unsure, ask again: "To confirm, is Bug #X now solved?"
+- If you're unsure, ask again: "To confirm, is Bug #X now working/solved?"
 
 Guidelines:
 - Be concise and professional
@@ -377,19 +385,25 @@ Keep responses natural and conversational."""
             # Extract information from this user message FIRST
             self._extract_information()
             
-            # Check if we have a complete report (developer, bug, progress, AND explicit solved status)
+            # Check if we have a complete report (developer, bug, progress, status, AND explicit solved status)
             has_complete_report = (
                 self.developer_id is not None and
                 self.selected_bug_id is not None and
                 self.progress_note is not None and
+                self.status is not None and
                 self.solved is not None
             )
             
             # If we have a complete report, save it and ask if user has more
             if has_complete_report and self.selected_bug_id not in [r.bug_id for r in self.completed_reports]:
+                # Create timestamped progress note
+                timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                progress_note_with_timestamp = f"{timestamp} - {self.progress_note}"
+                
                 report = BugReport(
                     bug_id=self.selected_bug_id,
-                    progress_note=self.progress_note,
+                    progress_note=progress_note_with_timestamp,
+                    status=self.status,
                     solved=self.solved
                 )
                 self.completed_reports.append(report)
@@ -435,14 +449,22 @@ Keep responses natural and conversational."""
   "developer_id": <number or null>,
   "bug_id": <number or null>,
   "progress_note": "<string or null>",
+  "status": "<string or null>",
   "solved": <true/false or null>
 }
 
 IMPORTANT: 
 - Look at the ENTIRE conversation history, especially recent messages
-- If the user said "Yes" when asked if it's solved, set solved to true
-- If the user said "No" when asked if it's solved, set solved to false
-- Find the LATEST/MOST RECENT status, not old messages
+- Extract TWO separate things:
+  1. STATUS: The workflow state the user mentioned (Open, In Progress, Testing, Resolved, Closed)
+  2. SOLVED: Whether the bug functionally works now (true/false)
+- Examples: "Resolved status but not solved" OR "still In Progress but we believe it's solved"
+- If user said "Resolved" or "Fixed", set status="Resolved"
+- If user said "Open" or "not started", set status="Open"
+- If user said "Testing", set status="Testing"
+- If user said "Yes" to "is it solved?", set solved=true
+- If user said "No" to "is it solved?", set solved=false
+- Find the LATEST/MOST RECENT values, not old messages
 
 Return ONLY valid JSON, nothing else."""
 
@@ -461,7 +483,7 @@ Return ONLY valid JSON, nothing else."""
             # Validate with Pydantic model
             extracted = ExtractedInfo(**data)
             
-            # Update fields - ALWAYS update solved status (most recent is most accurate)
+            # Update fields - ALWAYS update mutable fields (they can change as conversation progresses)
             if extracted.developer_id and not self.developer_id:
                 self.developer_id = extracted.developer_id
             
@@ -471,7 +493,10 @@ Return ONLY valid JSON, nothing else."""
             if extracted.progress_note and not self.progress_note:
                 self.progress_note = extracted.progress_note
             
-            # ALWAYS update solved - it can change as conversation progresses
+            # ALWAYS update status and solved - they can change during conversation
+            if extracted.status:
+                self.status = extracted.status
+            
             if extracted.solved is not None:
                 self.solved = extracted.solved
                 
@@ -484,6 +509,7 @@ Return ONLY valid JSON, nothing else."""
         """Reset state after a successful report for the next bug report."""
         self.selected_bug_id = None
         self.progress_note = None
+        self.status = None
         self.solved = None
     
     def _should_end_conversation(self) -> bool:
@@ -563,6 +589,7 @@ Answer with ONLY 'YES' or 'NO'."""
             self.developer_id is not None and
             self.selected_bug_id is not None and
             self.progress_note is not None and
+            self.status is not None and
             self.solved is not None
         )
         
@@ -578,6 +605,7 @@ Answer with ONLY 'YES' or 'NO'."""
                 report = BugReport(
                     bug_id=self.selected_bug_id,
                     progress_note=progress_note_with_timestamp,
+                    status=self.status,
                     solved=self.solved
                 )
                 

@@ -143,14 +143,15 @@ class DataManager:
         """List all bugs."""
         return self.bugs
     
-    def update_bug_progress(self, bug_id: int, progress_note: str, solved: bool) -> bool:
+    def update_bug_progress(self, bug_id: int, progress_note: str, status: str, solved: bool) -> bool:
         """
-        Update a bug with progress note and solved status.
+        Update a bug with progress note, status, and solved status.
         Saves changes to the bugs.json file.
         
         Args:
             bug_id: Bug ID to update
             progress_note: Progress note to add (with timestamp)
+            status: Bug status (Open, In Progress, Testing, Resolved, Closed)
             solved: Whether the bug is solved
             
         Returns:
@@ -166,7 +167,8 @@ class DataManager:
         else:
             bug["progress_notes"] = progress_note
         
-        # Update solved status
+        # Update status and solved status
+        bug["status"] = status
         bug["solved"] = solved
         
         # Save to file

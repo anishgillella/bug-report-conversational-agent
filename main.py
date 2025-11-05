@@ -41,13 +41,15 @@ def main():
     
     # Update bug data if conversation was successful
     if output.success and output.report:
+        # Use status extracted by LLM from conversation
         update_success = data_manager.update_bug_progress(
             bug_id=output.report.bug_id,
             progress_note=output.report.progress_note,
+            status=output.report.status,
             solved=output.report.solved
         )
         if update_success:
-            print(f"✓ Updated Bug ID {output.report.bug_id} in database")
+            print(f"✓ Updated Bug ID {output.report.bug_id} in database (Status: {output.report.status}, Solved: {output.report.solved})")
         else:
             print(f"✗ Failed to update Bug ID {output.report.bug_id}")
     
