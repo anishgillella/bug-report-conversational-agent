@@ -356,6 +356,24 @@ Keep responses natural and conversational."""
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
+            # Extract information from this user message FIRST
+            self._extract_information()
+            
+            # Check if user wants to end conversation BEFORE generating bot response
+            # This prevents unnecessary back-and-forth
+            should_end = self._should_end_conversation()
+            
+            if should_end:
+                # Extract final information before ending
+                self._extract_information()
+                
+                # Give final summary before ending
+                farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
+                print(f"\nBot: {farewell_msg}\n")
+                self.messages.append({"role": "assistant", "content": farewell_msg})
+                self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
+                break
+            
             # Check if this is the last turn before limit
             if self.turn_count >= self.max_turns:
                 # Give a graceful exit message
@@ -370,19 +388,6 @@ Keep responses natural and conversational."""
             print(f"\nBot: {bot_response}\n")
             self.messages.append({"role": "assistant", "content": bot_response})
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
-            
-            # Now check if conversation should end (separate model/check)
-            # This happens after bot responds, to check if user wants to end
-            if self._should_end_conversation():
-                # Extract final information before ending
-                self._extract_information()
-                
-                # Give final summary before ending
-                farewell_msg = "Thank you for your detailed update! I've successfully gathered all the necessary information. Your report is now ready to be submitted to the bug tracking system."
-                print(f"\nBot: {farewell_msg}\n")
-                self.messages.append({"role": "assistant", "content": farewell_msg})
-                self.trace.append({"type": "message", "role": "assistant", "content": farewell_msg})
-                break
     
     def _extract_information(self):
         """
@@ -445,18 +450,41 @@ Return ONLY valid JSON, nothing else."""
         last_user_msg = None
         for msg in reversed(self.messages):
             if msg.get("role") == "user":
-                last_user_msg = msg.get("content", "").strip()
+                last_user_msg = msg.get("content", "").strip().lower()
                 break
         
+        # Don't end if no recent user message
         if not last_user_msg:
             return False
         
+        # Don't end if we don't have all required info yet
+        has_required_info = (
+            self.developer_id is not None and
+            self.selected_bug_id is not None
+        )
+        if not has_required_info:
+            return False
+        
+        # Simple direct check first - common end signals
+        end_signals = ["no", "nope", "that's it", "that is it", "i'm done", "i am done", "no more", "nothing else", "nothing", "done"]
+        if any(signal in last_user_msg for signal in end_signals):
+            return True
+        
+        # If not a simple signal, use LLM for context-aware decision
+        # Get recent conversation context for better understanding
+        recent_msgs = []
+        for msg in self.messages[-4:]:
+            role = msg.get("role", "").upper()
+            content = msg.get("content", "")[:100]  # Truncate for clarity
+            recent_msgs.append(f"{role}: {content}")
+        
+        context = "\n".join(recent_msgs)
+        
         # Ask a separate LLM to determine if user wants to end
-        end_check_prompt = f"""The user just said: "{last_user_msg}"
+        end_check_prompt = f"""Recent conversation:
+{context}
 
-Does this indicate the user wants to STOP the conversation and submit their bug report?
-Consider messages like "No", "That's it", "No more bugs", "Nothing else", "I'm done", etc. as YES.
-
+Does the user's most recent message indicate they want to END and submit the report?
 Answer with ONLY 'YES' or 'NO'."""
 
         try:
