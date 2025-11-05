@@ -36,6 +36,16 @@ def main():
     # Run interactive conversation
     bot.run_interactive()
     
+    # Get structured output
+    output = bot.get_structured_output()
+    
+    # Display structured output to user
+    print("\n" + "="*70)
+    print("STRUCTURED OUTPUT - Ready for Bug Tracking System")
+    print("="*70)
+    print(json.dumps(output.model_dump(), indent=2))
+    print("="*70 + "\n")
+    
     # Save conversation trace
     results_dir = Path("results")
     results_dir.mkdir(exist_ok=True)
@@ -44,15 +54,14 @@ def main():
     with open(trace_file, "w") as f:
         json.dump(bot.trace, f, indent=2)
     
-    print(f"\nConversation trace saved to: {trace_file}")
+    print(f"✓ Conversation trace saved to: {trace_file}")
     
-    # Save structured output attempt
-    output = bot.get_structured_output()
+    # Save structured output
     output_file = results_dir / f"output_{len(list(results_dir.glob('output_*.json'))) + 1}.json"
     with open(output_file, "w") as f:
-        json.dump(output, f, indent=2)
+        json.dump(output.model_dump(), f, indent=2)
     
-    print(f"Output saved to: {output_file}")
+    print(f"✓ Structured output saved to: {output_file}")
 
 
 if __name__ == "__main__":

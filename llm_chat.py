@@ -9,7 +9,24 @@ from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 from openai import OpenAI
+from pydantic import BaseModel, Field
 from data_manager import DataManager
+
+
+# Pydantic models for structured output
+class BugReport(BaseModel):
+    """Structured bug report from conversation."""
+    bug_id: int = Field(..., description="Unique bug identifier")
+    progress_note: str = Field(..., description="Timestamped progress entry")
+    solved: bool = Field(..., description="Whether bug is solved")
+
+
+class ConversationOutput(BaseModel):
+    """Final structured output from conversation."""
+    success: bool = Field(..., description="Whether conversation gathered all required info")
+    report: Optional[BugReport] = Field(None, description="Bug report if successful")
+    missing_fields: Optional[List[str]] = Field(None, description="Fields missing if unsuccessful")
+    error: Optional[str] = Field(None, description="Error message if unsuccessful")
 
 
 class BugReportingBot:
@@ -341,6 +358,18 @@ Keep responses natural and conversational."""
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
+            # Check if this is the last turn before limit
+            if self.turn_count >= self.max_turns:
+                # Extract any final information from this last message
+                self._extract_information()
+                
+                # Give a graceful exit message
+                exit_msg = f"Thank you for your input! We've reached the conversation limit of {self.max_turns} turns. I'm now preparing your final report based on our discussion."
+                print(f"\nBot: {exit_msg}\n")
+                self.messages.append({"role": "assistant", "content": exit_msg})
+                self.trace.append({"type": "message", "role": "assistant", "content": exit_msg})
+                break
+            
             # Get bot response
             bot_response = self.get_bot_response()
             print(f"\nBot: {bot_response}\n")
@@ -352,9 +381,6 @@ Keep responses natural and conversational."""
             if self._is_conversation_complete():
                 print("\nConversation complete!")
                 break
-        
-        if self.turn_count >= self.max_turns:
-            print(f"\nReached maximum turn limit ({self.max_turns}).")
     
     def _extract_information(self):
         """
@@ -379,14 +405,28 @@ Keep responses natural and conversational."""
                     if self.developer_name:
                         break
         
-        # Check for bug selection patterns (Bug #X)
+        # Check for bug selection patterns (Bug #X or just number)
         if not self.selected_bug_id:
+            # First try to find "Bug #X" pattern
             conv_text = " ".join([msg.get("content", "") for msg in self.messages])
             bug_pattern = r"[Bb]ug\s*#?(\d+)"
             matches = re.findall(bug_pattern, conv_text)
+            
             if matches:
                 # Get the most recent bug number
                 self.selected_bug_id = int(matches[-1])
+            else:
+                # If no "Bug" mention, look for standalone numbers in recent user messages
+                for msg in reversed(self.messages):
+                    if msg.get("role") == "user":
+                        content = msg.get("content", "").strip()
+                        # Check if message is just a number (bug ID)
+                        if content.isdigit():
+                            potential_bug_id = int(content)
+                            # Validate it's a real bug ID
+                            if self.data_manager.get_bug_by_id(potential_bug_id):
+                                self.selected_bug_id = potential_bug_id
+                                break
         
         # Check for solved status patterns
         if self.solved is None:
@@ -429,12 +469,12 @@ Keep responses natural and conversational."""
         # and generate output based on what was discussed
         return False
     
-    def get_structured_output(self) -> Dict[str, Any]:
+    def get_structured_output(self) -> ConversationOutput:
         """
-        Generate the final structured JSON output by parsing the conversation.
-        Uses pattern matching and simple extraction logic.
+        Generate the final structured output by parsing the conversation.
+        Uses Pydantic models for proper validation and structure.
         
-        Returns a JSON object with success flag and optional report.
+        Returns a ConversationOutput object with validation.
         """
         # Extract any remaining information
         self._extract_information()
@@ -447,8 +487,6 @@ Keep responses natural and conversational."""
             self.solved is not None
         )
         
-        output = {"success": success}
-        
         if success:
             # Verify the bug belongs to this developer
             bug = self.data_manager.get_bug_by_id(self.selected_bug_id)
@@ -457,23 +495,35 @@ Keep responses natural and conversational."""
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 progress_note_with_timestamp = f"{timestamp} - {self.progress_note}"
                 
-                output["report"] = {
-                    "bug_id": self.selected_bug_id,
-                    "progress_note": progress_note_with_timestamp,
-                    "solved": self.solved
-                }
+                # Create validated Pydantic objects
+                report = BugReport(
+                    bug_id=self.selected_bug_id,
+                    progress_note=progress_note_with_timestamp,
+                    solved=self.solved
+                )
+                
+                return ConversationOutput(
+                    success=True,
+                    report=report
+                )
             else:
-                output["success"] = False
-                output["error"] = "Selected bug is not assigned to this developer"
+                return ConversationOutput(
+                    success=False,
+                    error="Selected bug is not assigned to this developer"
+                )
         else:
-            output["missing_fields"] = []
+            # Collect missing fields
+            missing_fields = []
             if self.developer_id is None:
-                output["missing_fields"].append("developer_id")
+                missing_fields.append("developer_id")
             if self.selected_bug_id is None:
-                output["missing_fields"].append("selected_bug_id")
+                missing_fields.append("selected_bug_id")
             if self.progress_note is None:
-                output["missing_fields"].append("progress_note")
+                missing_fields.append("progress_note")
             if self.solved is None:
-                output["missing_fields"].append("solved_status")
-        
-        return output
+                missing_fields.append("solved_status")
+            
+            return ConversationOutput(
+                success=False,
+                missing_fields=missing_fields
+            )
