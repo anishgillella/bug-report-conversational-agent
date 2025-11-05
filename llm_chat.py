@@ -431,45 +431,59 @@ Keep responses natural and conversational."""
         
         # Check for solved status patterns
         if self.solved is None:
-            # Look at ALL user messages to find solved status
-            recent_user_messages = []
-            for msg in reversed(self.messages):
-                if msg.get("role") == "user":
-                    recent_user_messages.append(msg.get("content", "").lower())
-                    if len(recent_user_messages) >= 3:  # Get last 3 user messages
-                        break
+            # Look at recent messages (both bot and user) for context
+            recent_messages_text = []
+            for msg in reversed(self.messages[-8:]):  # Last 8 messages for context
+                recent_messages_text.append(msg.get("content", "").lower())
             
-            recent_text = " ".join(recent_user_messages)
+            full_context = " ".join(recent_messages_text)
             
             # First check for explicit "not solved" phrases
-            not_solved_indicators = ["not solved", "still working", "more work", "not done", "not finished", "still in progress"]
+            not_solved_indicators = ["not solved", "still working", "more work", "not done", "not finished", "still in progress", "not ready"]
             for indicator in not_solved_indicators:
-                if indicator in recent_text:
+                if indicator in full_context:
                     self.solved = False
-                    return
+                    break
             
             # Then check for solved indicators
-            solved_indicators = ["solved", "fixed", "resolved", "done", "works", "working", "success"]
-            for indicator in solved_indicators:
-                if indicator in recent_text:
-                    self.solved = True
-                    return
+            if self.solved is None:
+                solved_indicators = ["solved", "fixed", "resolved", "done", "success", "confirmed"]
+                for indicator in solved_indicators:
+                    if indicator in full_context:
+                        self.solved = True
+                        break
             
-            # If user just says "Yes" in context of being asked if solved
-            if recent_text.strip() in ["yes", "yep", "yeah", "yup", "correct", "right"]:
-                # This is likely confirming a previous status question
-                if "not solved" not in recent_text and "still" not in recent_text:
-                    self.solved = True
+            # If still not determined, look for affirmations in recent user-only messages
+            # when the bot was asking about status
+            if self.solved is None:
+                recent_user_msgs = []
+                for msg in reversed(self.messages):
+                    if msg.get("role") == "user":
+                        recent_user_msgs.append(msg.get("content", "").lower())
+                        if len(recent_user_msgs) >= 2:
+                            break
+                
+                recent_user_text = " ".join(recent_user_msgs)
+                
+                # If user just says "yes" or similar, assume they're confirming solved status
+                if recent_user_text.strip() in ["yes", "yep", "yeah", "yup", "correct", "right", "affirmative"]:
+                    # Check if bot was asking about solved/resolved status
+                    if any(word in full_context for word in ["solved", "resolved", "finished", "done"]):
+                        self.solved = True
         
         # Collect progress notes from user messages about work done
         if not self.progress_note:
             for msg in reversed(self.messages):
                 if msg.get("role") == "user":
-                    content = msg.get("content", "")
-                    # Look for substantive content that's not just answers
-                    if len(content) > 20 and not content.lower().startswith("i'm"):
-                        self.progress_note = content
-                        break
+                    content = msg.get("content", "").strip()
+                    # Skip very short messages (like "Yes", "No", numbers, bug IDs)
+                    if len(content) > 10:
+                        # Skip simple affirmations/negations
+                        if content.lower() not in ["yes", "no", "yes please", "no thanks", "correct", "nope", "yep"]:
+                            # Skip bug ID numbers
+                            if not content.isdigit():
+                                self.progress_note = content
+                                break
     
     def _is_conversation_complete(self) -> bool:
         """
@@ -492,28 +506,44 @@ Keep responses natural and conversational."""
         if not (has_all_fields and has_enough_turns):
             return False
         
+        # Get the last user message to check for completion signals
+        last_user_msg = None
+        for msg in reversed(self.messages):
+            if msg.get("role") == "user":
+                last_user_msg = msg.get("content", "").lower().strip()
+                break
+        
+        if not last_user_msg:
+            return False
+        
         # Use LLM to reason about whether conversation should end
-        # Get recent conversation context
-        recent_messages = self.messages[-6:] if len(self.messages) > 6 else self.messages
+        # Get recent conversation context (include more context for better reasoning)
+        recent_messages = self.messages[-8:] if len(self.messages) > 8 else self.messages
         
-        completion_prompt = """Based on this conversation, should we end the conversation and submit the bug report?
-        
-Consider: Does the user seem to be done reporting? Have they given all necessary information about their bug work?
+        completion_prompt = f"""The user just said: "{last_user_msg}"
 
-Answer with only 'YES' or 'NO'."""
+Given that we have already collected:
+- Developer: {self.developer_id}
+- Bug ID: {self.selected_bug_id}
+- Work done: {self.progress_note}
+- Bug solved: {self.solved}
+
+Based on the user's last message and the conversation context, should we END the conversation and submit the report?
+
+Answer with ONLY 'YES' or 'NO'. YES means the user is done reporting and we should end."""
         
         # Create a temporary message list for the completion check
         temp_messages = recent_messages + [{"role": "user", "content": completion_prompt}]
         
         try:
             messages_for_llm = [
-                {"role": "system", "content": "You are a brief analyzer. Answer only YES or NO."}
+                {"role": "system", "content": "You are a precise analyzer. Answer with only YES or NO."}
             ] + temp_messages
             
             response = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages_for_llm,
-                max_tokens=10
+                max_tokens=5
             )
             
             answer = response.choices[0].message.content.strip().upper()
