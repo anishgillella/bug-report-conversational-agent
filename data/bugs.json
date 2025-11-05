@@ -60,7 +60,7 @@
     "description": "Payment processing fails for international credit cards",
     "assigned_dev": 7,
     "status": "Testing",
-    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments",
     "solved": true
   },
   {

@@ -39,6 +39,18 @@ def main():
     # Get structured output
     output = bot.get_structured_output()
     
+    # Update bug data if conversation was successful
+    if output.success and output.report:
+        update_success = data_manager.update_bug_progress(
+            bug_id=output.report.bug_id,
+            progress_note=output.report.progress_note,
+            solved=output.report.solved
+        )
+        if update_success:
+            print(f"✓ Updated Bug ID {output.report.bug_id} in database")
+        else:
+            print(f"✗ Failed to update Bug ID {output.report.bug_id}")
+    
     # Display structured output to user
     print("\n" + "="*70)
     print("STRUCTURED OUTPUT - Ready for Bug Tracking System")

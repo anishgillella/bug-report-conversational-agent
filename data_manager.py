@@ -142,3 +142,39 @@ class DataManager:
     def list_all_bugs(self) -> List[Dict[str, Any]]:
         """List all bugs."""
         return self.bugs
+    
+    def update_bug_progress(self, bug_id: int, progress_note: str, solved: bool) -> bool:
+        """
+        Update a bug with progress note and solved status.
+        Saves changes to the bugs.json file.
+        
+        Args:
+            bug_id: Bug ID to update
+            progress_note: Progress note to add (with timestamp)
+            solved: Whether the bug is solved
+            
+        Returns:
+            True if successful, False otherwise
+        """
+        bug = self.bug_id_map.get(bug_id)
+        if not bug:
+            return False
+        
+        # Add progress note to existing notes
+        if bug.get("progress_notes"):
+            bug["progress_notes"] += f"\n{progress_note}"
+        else:
+            bug["progress_notes"] = progress_note
+        
+        # Update solved status
+        bug["solved"] = solved
+        
+        # Save to file
+        self._save_bugs()
+        return True
+    
+    def _save_bugs(self) -> None:
+        """Save bugs back to JSON file."""
+        bugs_file = self.data_dir / "bugs.json"
+        with open(bugs_file, "w") as f:
+            json.dump(self.bugs, f, indent=2)
