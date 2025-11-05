@@ -4,7 +4,7 @@
     "description": "User authentication fails when using special characters in password",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 15:38:38 - Fixed password validation",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 15:38:38 - Fixed password validation\n2025-11-05 15:56:45 - Investigated password validation logic\nUpdated regex pattern to handle special characters\nTested with various special character combinations\nDeployed fix to production\nFixed password validation",
     "solved": true
   },
   {
@@ -28,7 +28,7 @@
     "description": "API rate limiting not working for premium users",
     "assigned_dev": 4,
     "status": "In Progress",
-    "progress_notes": "2024-01-22 10:30:00 - Reviewed rate limiting configuration\n2024-01-22 14:15:00 - Found issue with user tier detection\n2025-11-05 14:54:32 - It's in progress\n2025-11-05 14:56:00 - Added caching layer to optimize API rate limiting",
+    "progress_notes": "2024-01-22 10:30:00 - Reviewed rate limiting configuration\n2024-01-22 14:15:00 - Found issue with user tier detection\n2025-11-05 14:54:32 - It's in progress\n2025-11-05 14:56:00 - Added caching layer to optimize API rate limiting\n2025-11-05 15:57:51 - Added caching mechanism for API rate limiting",
     "solved": false
   },
   {
