@@ -169,12 +169,34 @@ class BugReportingBot:
             )
             
             follow_up_message = follow_up_response.choices[0].message
-            self.messages.append({
-                "role": "assistant",
-                "content": follow_up_message.content
-            })
             
-            return follow_up_message.content or ""
+            # Check if follow-up has ANOTHER tool call (recursive case)
+            if hasattr(follow_up_message, 'tool_calls') and follow_up_message.tool_calls:
+                # Another tool call! Add this message and recursively handle it
+                self.messages.append({
+                    "role": "assistant",
+                    "content": follow_up_message.content or "",
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments
+                            }
+                        }
+                        for tc in follow_up_message.tool_calls
+                    ]
+                })
+                # Recursively handle the nested tool calls
+                return self.get_bot_response()
+            else:
+                # Regular text response - add and return it
+                self.messages.append({
+                    "role": "assistant",
+                    "content": follow_up_message.content
+                })
+                return follow_up_message.content or ""
         
         # No tool calls - just regular response
         self.messages.append({
