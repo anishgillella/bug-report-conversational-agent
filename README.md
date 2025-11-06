@@ -432,10 +432,3 @@ To extend this chatbot:
 3. Enhance extraction in `BugReportingBot._extract_information()`
 4. Add test cases in `test_scenarios.py`
 
-## License
-
-This is a take-home test project for Quintess AI.
-
-## Questions?
-
-For questions about the implementation, refer to the code comments or contact julien@quintess.ai.
