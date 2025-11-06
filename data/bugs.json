@@ -4,7 +4,7 @@
     "description": "User authentication fails when using special characters in password",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 19:27:42 - Yes",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 19:27:42 - Yes\n2025-11-05 19:32:29 - Yes",
     "solved": true
   },
   {
@@ -43,8 +43,8 @@
     "bug_id": 6,
     "description": "Search functionality returns incorrect results for partial matches",
     "assigned_dev": 5,
-    "status": "In Progress",
-    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic",
+    "status": "Testing",
+    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic\n2025-11-05 19:32:08 - Used pydantic models with web search",
     "solved": false
   },
   {

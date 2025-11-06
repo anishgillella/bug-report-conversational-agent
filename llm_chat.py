@@ -345,6 +345,24 @@ Answer with ONLY "YES" or "NO"."""
         except Exception:
             return False
     
+    def _get_final_summary(self) -> str:
+        """Generate a final summary of all completed reports using Pydantic models."""
+        if not self.completed_reports:
+            return "No bug reports were completed in this session."
+        
+        summary_lines = ["Here's the summary of your bug report(s):\n"]
+        
+        for i, report in enumerate(self.completed_reports, 1):
+            summary_lines.append(f"**Bug Report #{i}:**")
+            summary_lines.append(f"  • Bug ID: {report.bug_id}")
+            summary_lines.append(f"  • Status: {report.status}")
+            summary_lines.append(f"  • Solved: {'Yes' if report.solved else 'No'}")
+            summary_lines.append(f"  • Work Done: {report.progress_note.split(' - ', 1)[1] if ' - ' in report.progress_note else report.progress_note}")
+            summary_lines.append("")
+        
+        summary_lines.append("This information has been saved to the bug tracking system.")
+        return "\n".join(summary_lines)
+    
     def add_user_message(self, content: str) -> None:
         """Add user message to conversation history."""
         self.messages.append({"role": "user", "content": content})
@@ -419,6 +437,10 @@ Answer with ONLY "YES" or "NO"."""
             
             # Check if user wants to end (AFTER extracting all info)
             if self._should_end_conversation():
+                # Show final summary to user
+                summary = self._get_final_summary()
+                print(f"Bot: {summary}\n")
+                self.trace.append({"type": "message", "role": "assistant", "content": summary})
                 break
     
     def get_structured_output(self) -> ConversationOutput:
