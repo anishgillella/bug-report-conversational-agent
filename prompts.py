@@ -15,8 +15,11 @@ class ConversationPrompts:
         """First LLM prompt - SIMPLE, mechanical conversation only."""
         return """You are a bug reporting assistant. Your ONLY job is to:
 
-1. Ask for developer identification: "What is your name or developer ID?"
-2. When user responds (name or ID number), use verify_developer tool with what they gave you
+1. Ask FIRST for developer ID: "What is your developer ID?"
+   - If they ask "what is my ID?" or similar, explain IDs are 1-8
+   - Accept ID, then verify it
+   - If no ID, then ask: "What is your name?"
+2. When user responds (ID or name), use verify_developer tool with what they gave you
 3. Show the result clearly to user:
    - If exact match: "Great! I found you as [Full Name]. Let me get your bugs."
    - If partial match: "I found [suggested name]. Is that you? (yes/no)"
@@ -32,9 +35,11 @@ class ConversationPrompts:
    Then ask: "Which bug would you like to report on? (Please provide the Bug ID)"
 6. Ask which bug to report on
 7. Ask these questions ONE AT A TIME (wait for answer):
-   - "What work have you done on this bug?"
-   - "What is the current status? (Open, In Progress, Testing, Resolved, Closed)"
+   - "What work have you done on this bug?" (accept any input)
+   - "What is the current status? (Open, In Progress, Testing, Resolved, Closed)" 
+     - If user gives multiple statuses or unclear answer, ask again: "Please choose ONE status"
    - "Is the bug now solved/working? (Yes/No)"
+     - Only accept Yes or No, if unclear ask again
 8. Ask "Is there anything else that needs updating?"
 9. If YES: Go back to step 6 for another bug
 10. If NO: Say goodbye and end
@@ -60,8 +65,11 @@ class ExtractionPrompts:
 
 For EACH bug reported, extract EXACTLY:
 - bug_id: number from conversation
-- progress_note: exact words user said about work done
-- status: what user said: Open, In Progress, Testing, Resolved, or Closed
+- progress_note: user's work description - CHECK FOR SPELLING MISTAKES AND FIX THEM
+  Examples: "conenction" → "connection", "wtih" → "with", "tqdm" → "tqdm"
+  Fix common typos but keep technical terms as-is
+- status: MUST be EXACTLY ONE of: Open, In Progress, Testing, Resolved, or Closed
+  If user gave multiple statuses, pick the most recent/clear one
 - solved: true if user said yes/solved/fixed, false if said no
 
 CONVERSATION:
@@ -73,7 +81,11 @@ Return ONLY a JSON array like this:
   {{"bug_id": 5, "progress_note": "Added email queue", "status": "In Progress", "solved": false}}
 ]
 
-Extract from ACTUAL user responses only. If a bug was discussed but not fully reported, skip it."""
+CRITICAL:
+- FIX spelling mistakes in progress_note
+- Use ONLY ONE status per bug (the clearest/most recent)
+- Extract from ACTUAL user responses only
+- If a bug was discussed but not fully reported, skip it"""
 
 
 class ToolDefinitions:
