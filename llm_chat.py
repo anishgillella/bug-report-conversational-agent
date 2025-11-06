@@ -182,6 +182,7 @@ class BugReportingBot:
         FINAL ANALYSIS: Analyze entire conversation and extract all completed bug reports.
         This is done ONCE at the end, after conversation is complete.
         """
+        print("\n[DEBUG] Starting final analysis...")
         # Build full conversation text
         conv_text = ""
         for msg in self.messages:
@@ -203,6 +204,7 @@ class BugReportingBot:
             )
             
             extracted_text = response.choices[0].message.content.strip()
+            print(f"[DEBUG_EXTRACT] LLM returned: {extracted_text}")
             
             # Find and parse JSON array - handle markdown code blocks
             # Remove markdown code blocks if present
@@ -332,14 +334,11 @@ class BugReportingBot:
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
-            # Get next bot response
-            bot_response = self.get_bot_response()
-            print(f"Bot: {bot_response}\n")
-            self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
-            
-            # Check if user wants to end conversation
-            # NO extraction during conversation - only analyze at the end
-            if self._should_end_conversation():
+            # Check if user wants to end conversation BEFORE getting bot response
+            # This way we detect end signals before bot generates farewell
+            end_detected = self._should_end_conversation()
+            print(f"[DEBUG_LOOP] End detection returned: {end_detected}")
+            if end_detected:
                 # FINAL ANALYSIS: Analyze entire conversation and extract all reports
                 self.completed_reports = self._analyze_conversation_for_reports()
                 
@@ -348,6 +347,11 @@ class BugReportingBot:
                 print(f"Bot: {summary}\n")
                 self.trace.append({"type": "message", "role": "assistant", "content": summary})
                 break
+            
+            # Get next bot response (only if conversation hasn't ended)
+            bot_response = self.get_bot_response()
+            print(f"Bot: {bot_response}\n")
+            self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
     
     def get_structured_output(self) -> ConversationOutput:
         """Generate final structured output."""

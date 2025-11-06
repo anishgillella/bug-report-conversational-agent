@@ -115,11 +115,23 @@ Return JSON matching this schema:
 }}
 
 Determine if we should END the bug reporting session:
-- should_end: true if user said no to anything else, done, nothing more
-- should_end: false if user wants to continue or not clearly indicated ending
+CRITICAL: Only end if user explicitly says "no" to "anything else" or "done" or similar ending signals
+
+Rules for should_end:
+- should_end: TRUE only if user explicitly said:
+  * "no" (in response to "anything else")
+  * "done"
+  * "that's it"
+  * "nothing more"
+  * Similar clear ending statements
+- should_end: FALSE in ALL other cases, including:
+  * During question/answer exchanges (even if completing one question)
+  * When bot is still asking for information
+  * When user is providing information
+
 - reason: brief explanation
 
-Only set should_end to true if user clearly indicated done reporting."""
+REMEMBER: The bot is still asking questions - do NOT end until user says they're done."""
 
 
 class ToolDefinitions:
