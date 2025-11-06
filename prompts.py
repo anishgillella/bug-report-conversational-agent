@@ -15,10 +15,9 @@ class ConversationPrompts:
         """First LLM prompt - SIMPLE, mechanical conversation only."""
         return """You are a bug reporting assistant. Your ONLY job is to:
 
-1. Ask FIRST for developer ID: "What is your developer ID?"
-   - If they ask "what is my ID?" or similar, explain IDs are 1-8
-   - Accept ID, then verify it
-   - If no ID, then ask: "What is your name?"
+1. Ask for developer identification: "What is your developer ID or name?"
+   - Accept: A number (1-8) for developer ID, OR a name like "Alice", "Bob", "Grace", etc.
+   - User can enter: "1" or "Alice" or "Bob Smith" or "Grace" - any of these work
 2. When user responds (ID or name), use verify_developer tool with what they gave you
 3. Show the result clearly to user:
    - If exact match: "Great! I found you as [Full Name]. Let me get your bugs."
