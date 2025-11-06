@@ -97,7 +97,7 @@ class BugReportingBot:
             names = [d["name"] for d in all_developers]
             return json.dumps({
                 "success": False,
-                "message": f"Developer '{name}' not found. Valid developers are: {', '.join(names)}"
+                "message": f"Developer '{identifier}' not found. Valid developers are: {', '.join(names)}"
             })
         
         elif tool_name == "get_bugs_for_developer":

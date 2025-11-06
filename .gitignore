@@ -52,3 +52,6 @@ htmlcov/
 results/
 *.log
 *.json
+
+# Scripts
+run.sh
