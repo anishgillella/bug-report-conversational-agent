@@ -2,7 +2,7 @@
 Pydantic models for bug reporting chatbot.
 Defines all data structures and validation schemas.
 """
-from typing import Optional, List
+from typing import List
 from pydantic import BaseModel, Field
 
 
@@ -18,17 +18,4 @@ class ConversationOutput(BaseModel):
     """Final structured output from conversation."""
     success: bool = Field(..., description="Whether conversation gathered all required info")
     reports: List[BugReport] = Field(default_factory=list, description="List of bug reports from conversation")
-
-
-class ExtractedBugInfo(BaseModel):
-    """Extracted bug information from conversation."""
-    progress_note: Optional[str] = Field(None, description="Work done by user")
-    status: Optional[str] = Field(None, description="Current bug status")
-    solved: Optional[bool] = Field(None, description="Whether bug is solved")
-
-
-class ConversationEndSignal(BaseModel):
-    """Signal to determine if conversation should end."""
-    should_end: bool = Field(..., description="Whether to end the conversation")
-    reason: Optional[str] = Field(None, description="Why we should end or continue")
 

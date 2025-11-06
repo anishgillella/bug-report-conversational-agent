@@ -4,11 +4,11 @@ Pure LLM-driven conversation with minimal hardcoding.
 """
 import json
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import List, Dict, Any
 from openai import OpenAI
 
 from config import Config
-from models import BugReport, ConversationOutput, ExtractedBugInfo, ConversationEndSignal
+from models import BugReport, ConversationOutput
 from prompts import ConversationPrompts, ExtractionPrompts, ToolDefinitions
 from data_manager import DataManager
 
@@ -33,16 +33,11 @@ class BugReportingBot:
         self.turn_count = 0
         self.max_turns = Config.MAX_CONVERSATION_TURNS
         
-        # Gathered information (extracted from conversation)
-        self.developer_id: Optional[int] = None
-        self.selected_bug_id: Optional[int] = None
-        self.progress_note: Optional[str] = None
-        self.status: Optional[str] = None
-        self.solved: Optional[bool] = None
-        
-        # Conversation trace
-        self.trace: List[Dict[str, Any]] = []
+        # Completed bug reports
         self.completed_reports: List[BugReport] = []
+        
+        # Conversation trace for auditing
+        self.trace: List[Dict[str, Any]] = []
     
     def _get_system_prompt(self) -> str:
         """System prompt - guides LLM to conduct natural bug reporting conversation."""
@@ -72,7 +67,6 @@ class BugReportingBot:
                 developer = self.data_manager.find_developer_by_name(identifier)
             
             if developer:
-                self.developer_id = developer["developer_id"]
                 return json.dumps({
                     "success": True,
                     "developer_id": developer["developer_id"],

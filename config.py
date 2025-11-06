@@ -16,13 +16,9 @@ class Config:
     # LLM Settings
     LLM_MAX_TOKENS = 500
     EXTRACTION_MAX_TOKENS = 200
-    END_DETECTION_MAX_TOKENS = 100
     
     # Conversation Settings
     MAX_CONVERSATION_TURNS = 20
-    
-    # Bug Status Values
-    VALID_STATUSES = ["Open", "In Progress", "Testing", "Resolved", "Closed"]
     
     # Data Paths
     DATA_DIR = "data"
