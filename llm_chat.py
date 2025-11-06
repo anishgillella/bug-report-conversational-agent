@@ -88,7 +88,13 @@ IMPORTANT:
 - Use tools to fetch developer and bug information
 - Don't assume - always verify with user
 - When asking about more updates, be natural and conversational
-- When user indicates they're done, end the conversation gracefully"""
+- When user indicates they're done, end the conversation gracefully
+
+WHEN DISPLAYING BUGS TO USER:
+- Show Bug ID, Description, Status, and Solved status for each bug
+- Format clearly so user can see all details
+- If user asks "what is the status", respond with ALL bug details (ID, Status, Solved)
+- When asking "which bug to report on", display complete bug information"""
     
     def _get_tools(self) -> List[Dict[str, Any]]:
         """Define available tools for the LLM."""
