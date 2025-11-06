@@ -4,13 +4,16 @@ A conversational AI system that guides developers through natural language inter
 
 ## Overview
 
-This chatbot system conducts structured conversations with developers to:
-1. **Identify** the developer by name
-2. **Select** which bug they're reporting on (from their assigned bugs only)
-3. **Gather** information about work performed and insights
-4. **Determine** if the bug has been solved
+This chatbot system conducts **pure LLM-driven conversations** with developers to report bug progress. The LLM generates all conversation text naturally, asking appropriate questions and detecting when conversations end.
 
-The bot uses OpenRouter API with GPT-4o-mini for natural conversations and dynamically fetches bug data to avoid context bloat.
+**Architecture Philosophy:**
+- ✅ **No hardcoded messages** - Everything is LLM-generated
+- ✅ **No state machines** - LLM drives conversation naturally
+- ✅ **Minimal Pydantic models** - Only 2 models for essential data
+- ✅ **Tool-calling** - Dynamically fetches data when needed
+- ✅ **Natural end detection** - LLM recognizes when developer is done
+
+The bot uses OpenRouter API with **GPT-4o-mini** for natural conversations and automatically detects when to ask "Is there anything else to update?" and when to end the conversation based on the user's responses.
 
 ## Key Architecture Features
 
@@ -167,6 +170,26 @@ The bot tracks:
 - `solved` - Boolean status of bug resolution
 - `turn_count` - Current conversation turn (max 20)
 
+## Pydantic Models
+
+The system uses 2 minimal Pydantic models for type safety and validation:
+
+### `BugReport` Model
+```python
+class BugReport(BaseModel):
+    bug_id: int  # Unique bug identifier
+    progress_note: str  # Timestamped progress entry
+    status: str  # Bug status (Open, In Progress, Testing, Resolved, Closed)
+    solved: bool  # Whether bug is solved (functional state)
+```
+
+### `ConversationOutput` Model
+```python
+class ConversationOutput(BaseModel):
+    success: bool  # Whether conversation gathered all required info
+    report: Optional[BugReport]  # The bug report if successful
+```
+
 ## Structured Output Format
 
 The bot generates final reports in JSON format:
@@ -177,17 +200,13 @@ The bot generates final reports in JSON format:
   "report": {
     "bug_id": 1,
     "progress_note": "2024-01-15 14:30:00 - Updated regex pattern to handle special characters",
+    "status": "Resolved",
     "solved": true
   }
 }
 ```
 
-**Fields:**
-- `success` (boolean) - Whether conversation gathered required information
-- `report` (object, optional) - Only present if success=true
-  - `bug_id` (integer) - ID of reported bug
-  - `progress_note` (string) - Timestamped progress entry
-  - `solved` (boolean) - Whether bug is resolved
+**Note:** Pydantic models ensure type safety and validation. Output is serialized via `.model_dump()` method.
 
 ## Validation & Safety
 
