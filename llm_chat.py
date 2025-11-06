@@ -194,6 +194,7 @@ class BugReportingBot:
             conversation_text=conv_text
         )
         
+        
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -202,6 +203,17 @@ class BugReportingBot:
             )
             
             extracted_text = response.choices[0].message.content.strip()
+            
+            # Find and parse JSON array - handle markdown code blocks
+            # Remove markdown code blocks if present
+            if '```' in extracted_text:
+                # Extract content between ``` markers
+                parts = extracted_text.split('```')
+                if len(parts) >= 2:
+                    extracted_text = parts[1]  # Get content between first ``` and second ```
+                    if extracted_text.startswith('json'):
+                        extracted_text = extracted_text[4:]  # Remove 'json' language tag
+                    extracted_text = extracted_text.strip()
             
             # Find and parse JSON array
             start = extracted_text.find('[')
@@ -223,8 +235,7 @@ class BugReportingBot:
                             solved=item['solved']
                         )
                         reports.append(report)
-                    except (KeyError, ValueError):
-                        # Skip invalid reports
+                    except (KeyError, ValueError) as e:
                         pass
                 
                 return reports
@@ -238,9 +249,8 @@ class BugReportingBot:
         if not self.messages:
             return False
         
-        # NEVER end if no reports have been completed yet
-        if not self.completed_reports:
-            return False
+        # Note: In the new two-stage architecture, completed_reports is empty during conversation
+        # We detect end purely based on LLM's analysis of the conversation flow
         
         # Get recent conversation
         recent = self.messages[-3:]
@@ -344,10 +354,10 @@ class BugReportingBot:
         if self.completed_reports:
             return ConversationOutput(
                 success=True,
-                report=self.completed_reports[0]
+                reports=self.completed_reports
             )
         
         return ConversationOutput(
             success=False,
-            report=None
+            reports=[]
         )

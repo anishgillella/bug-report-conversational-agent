@@ -55,34 +55,35 @@ class ExtractionPrompts:
     @staticmethod
     def get_final_analysis_prompt() -> str:
         """Prompt for final analysis of entire conversation to extract bug reports."""
-        return """Analyze the complete conversation below and extract ALL bug reports the user submitted.
+        return """Your task: Analyze this conversation and extract ALL bug reports where the user provided:
+1. A bug ID number
+2. Work description
+3. Status (Open/In Progress/Testing/Resolved/Closed)
+4. Solved answer (yes=true, no=false)
 
 CONVERSATION:
 {conversation_text}
 
-For EACH bug the user reported on, extract:
-1. Bug ID (number)
-2. Progress Note (what work they said they did - EXACT user words, not bot summary)
-3. Status (what the user said: Open, In Progress, Testing, Resolved, or Closed)
-4. Solved (boolean - true if user said yes/solved/fixed, false if said no/not solved)
+EXTRACTION PROCESS:
+1. Find each bug ID the user discussed
+2. For each bug, find what work the user said they did
+3. Find what status the user said the bug currently has
+4. Find if the user said the bug is solved or not
 
-Return ONLY valid JSON array:
+EXAMPLE OUTPUT:
 [
-  {{
-    "bug_id": <number>,
-    "progress_note": "<user's exact work description>",
-    "status": "<Open|In Progress|Testing|Resolved|Closed>",
-    "solved": <true|false>
-  }}
+  {{"bug_id": 9, "progress_note": "Fixed the progress calculation", "status": "Resolved", "solved": true}},
+  {{"bug_id": 2, "progress_note": "Implemented connection pooling", "status": "In Progress", "solved": false}}
 ]
 
-CRITICAL RULES:
-- Extract ONLY what the USER said, not bot descriptions
-- progress_note: User's exact words about work done
-- status: One of the 5 valid statuses based on user's answer
-- solved: true ONLY if user explicitly said yes/solved/fixed/working, false if no/not solved
-- Return as JSON array - can contain 0-N bug reports
-- If user didn't complete reporting on a bug, exclude it from results"""
+EXTRACTION RULES:
+- Find ONLY bugs where user provided all 4 pieces of information
+- progress_note = exact words from user about what they did
+- status = one of: Open, In Progress, Testing, Resolved, Closed (as user stated)
+- solved = true if user said yes/yep/solved/fixed/working, false if said no/nope/not solved
+- Return JSON array (can be empty [] if no complete reports)
+
+Return ONLY the JSON array, no other text."""
 
     @staticmethod
     def get_bug_id_extraction_prompt() -> str:
