@@ -68,7 +68,7 @@
     "description": "File upload progress bar shows incorrect percentage",
     "assigned_dev": 2,
     "status": "Open",
-    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 19:34:27 - Yes",
     "solved": false
   },
   {

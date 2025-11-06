@@ -319,6 +319,11 @@ CRITICAL:
         if not self.messages:
             return False
         
+        # NEVER end if no reports have been completed yet
+        # We need at least one completed report to end the conversation
+        if not self.completed_reports:
+            return False
+        
         # Get recent conversation
         recent = self.messages[-3:]
         recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')[:100]}" for m in recent])
