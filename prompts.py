@@ -84,19 +84,32 @@ LOGICAL VALIDATION RULES:
   Example: If status="In Progress" and solved=true → change to solved=false
            OR change status to "Resolved" if the user clearly fixed it
 
+SUCCESS DETERMINATION:
+Analyze if the conversation was successful by checking:
+- Did developer identify themselves? ✓
+- Did they select a bug? ✓
+- Did they provide progress notes? ✓
+- Did they state bug status? ✓
+- Set success=true if ALL above are true AND they provided meaningful information
+- Set success=false if conversation was incomplete, vague, or developer not found
+
 CONVERSATION:
 {conversation_text}
 
-Return ONLY a JSON array like this:
-[
-  {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Resolved", "solved": true}},
-  {{"bug_id": 5, "progress_note": "Added email queue", "status": "In Progress", "solved": false}}
-]
+Return ONLY a JSON object like this:
+{{
+  "success": true,
+  "reports": [
+    {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Resolved", "solved": true}},
+    {{"bug_id": 5, "progress_note": "Added email queue", "status": "In Progress", "solved": false}}
+  ]
+}}
 
 CRITICAL:
 - FIX spelling mistakes in progress_note
 - Use ONLY ONE status per bug (the clearest/most recent)
 - ENFORCE LOGICAL CONSISTENCY between status and solved
+- LLM determines success based on conversation quality, not just report count
 - Extract from ACTUAL user responses only
 - If a bug was discussed but not fully reported, skip it"""
 
