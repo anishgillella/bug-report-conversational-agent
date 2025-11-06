@@ -39,19 +39,18 @@ def main():
     # Get structured output
     output = bot.get_structured_output()
     
-    # Update bug data if conversation was successful
-    if output.success and output.report:
-        # Use status extracted by LLM from conversation
+    # Update bug data for all completed reports
+    for report in bot.completed_reports:
         update_success = data_manager.update_bug_progress(
-            bug_id=output.report.bug_id,
-            progress_note=output.report.progress_note,
-            status=output.report.status,
-            solved=output.report.solved
+            bug_id=report.bug_id,
+            progress_note=report.progress_note,
+            status=report.status,
+            solved=report.solved
         )
         if update_success:
-            print(f"✓ Updated Bug ID {output.report.bug_id} in database (Status: {output.report.status}, Solved: {output.report.solved})")
+            print(f"✓ Updated Bug ID {report.bug_id} in database (Status: {report.status}, Solved: {report.solved})")
         else:
-            print(f"✗ Failed to update Bug ID {output.report.bug_id}")
+            print(f"✗ Failed to update Bug ID {report.bug_id}")
     
     # Display structured output to user
     print("\n" + "="*70)

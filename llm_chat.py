@@ -256,14 +256,14 @@ IMPORTANT:
     
     def _extract_info_from_conversation(self) -> Dict[str, Any]:
         """Extract bug report info from entire conversation history."""
-        # Build conversation text - focus on user messages and latest assistant
+        # Build conversation text from ALL messages for context
         conv_text = ""
-        for msg in self.messages[-8:]:  # Last 8 messages to keep context
+        for msg in self.messages:  # All messages for full context
             role = msg.get("role", "").upper()
             content = msg.get("content", "").strip()
             conv_text += f"{role}: {content}\n"
         
-        extraction_prompt = f"""From this conversation, extract the bug report as JSON:
+        extraction_prompt = f"""From this ENTIRE conversation, extract the MOST RECENT bug report as JSON:
 
 {conv_text}
 
@@ -275,13 +275,13 @@ Return ONLY this JSON (no other text):
   "solved": <true/false or null>
 }}
 
-Instructions:
-1. bug_id: Find the bug number the user selected
-2. progress_note: ONLY what the USER said in this conversation they DID (after "what work have you done")
-   - NOT from old database history or descriptions
-   - Extract exactly what user typed as their response
-3. status: ONLY the workflow status USER mentioned in THIS conversation
-4. solved: true ONLY if user said: yes, yeah, yep, fixed, working, solved"""
+CRITICAL: Extract the MOST RECENT/LATEST bug discussed:
+1. bug_id: The LATEST bug number the user selected (find the most recent "bug" or bug ID mentioned)
+2. progress_note: What the LATEST user response was to "what work have you done"
+3. status: The LATEST status the user mentioned (exact word from: Open, In Progress, Testing, Resolved, Closed)
+4. solved: The LATEST yes/no answer to "is the bug solved/working"
+
+If multiple bugs are discussed, focus on the MOST RECENT one."""
         
         try:
             response = self.client.chat.completions.create(
@@ -301,7 +301,7 @@ Instructions:
                 parsed = json.loads(json_str)
                 return parsed
         except Exception as e:
-            print(f"[DEBUG] Extraction error: {e}")
+            pass
         
         return {}
     
@@ -353,7 +353,11 @@ Answer with ONLY "YES" or "NO"."""
         
         while self.turn_count < self.max_turns:
             # Get user input
-            user_input = input("You: ").strip()
+            try:
+                user_input = input("You: ").strip()
+            except EOFError:
+                # End of input stream - graceful exit
+                break
             
             if user_input.lower() == "quit":
                 break
@@ -364,10 +368,6 @@ Answer with ONLY "YES" or "NO"."""
             self.turn_count += 1
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
-            
-            # Check if user wants to end (before getting bot response)
-            if self._should_end_conversation():
-                break
             
             # Get next bot response
             bot_response = self.get_bot_response()
@@ -407,6 +407,10 @@ Answer with ONLY "YES" or "NO"."""
                     self.progress_note = None
                     self.status = None
                     self.solved = None
+            
+            # Check if user wants to end (AFTER extracting all info)
+            if self._should_end_conversation():
+                break
     
     def get_structured_output(self) -> ConversationOutput:
         """Generate final structured output."""
