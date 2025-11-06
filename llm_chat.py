@@ -55,8 +55,21 @@ class BugReportingBot:
     def _execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
         """Execute a tool and return result as JSON string."""
         if tool_name == "verify_developer":
-            name = tool_input.get("name", "")
-            developer = self.data_manager.find_developer_by_name(name)
+            identifier = tool_input.get("name", "").strip()
+            developer = None
+            
+            # Try to parse as developer ID (number)
+            if identifier.isdigit():
+                dev_id = int(identifier)
+                # Find by ID
+                for dev in self.data_manager.developers:
+                    if dev["developer_id"] == dev_id:
+                        developer = dev
+                        break
+            
+            # If not a number or not found, try as name
+            if not developer:
+                developer = self.data_manager.find_developer_by_name(identifier)
             
             if developer:
                 self.developer_id = developer["developer_id"]
@@ -67,7 +80,7 @@ class BugReportingBot:
                 })
             
             # Try to find partial matches
-            similar = self.data_manager.find_similar_developers(name)
+            similar = self.data_manager.find_similar_developers(identifier)
             if similar:
                 if len(similar) == 1:
                     return json.dumps({

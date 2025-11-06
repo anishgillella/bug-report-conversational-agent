@@ -4,7 +4,7 @@
     "description": "User authentication fails when using special characters in password",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 22:55:18 - Fixed special character handling",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 22:55:18 - Fixed special character handling\n2025-11-05 22:57:29 - Fixed special character handling\n2025-11-05 22:57:55 - Fixed special character handling",
     "solved": true
   },
   {
@@ -36,8 +36,8 @@
     "description": "Email notifications not being sent for bug updates",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-12 09:00:00 - Investigated SMTP server logs\n2024-01-12 11:45:00 - Found authentication issue with email service\n2024-01-13 08:30:00 - Updated SMTP credentials\n2024-01-13 10:15:00 - Added retry logic for failed sends\n2024-01-13 16:00:00 - Tested notification delivery",
-    "solved": true
+    "progress_notes": "2024-01-12 09:00:00 - Investigated SMTP server logs\n2024-01-12 11:45:00 - Found authentication issue with email service\n2024-01-13 08:30:00 - Updated SMTP credentials\n2024-01-13 10:15:00 - Added retry logic for failed sends\n2024-01-13 16:00:00 - Tested notification delivery\n2025-11-05 22:57:29 - No\n2025-11-05 22:57:55 - No",
+    "solved": false
   },
   {
     "bug_id": 6,
@@ -60,7 +60,7 @@
     "description": "Payment processing fails for international credit cards",
     "assigned_dev": 7,
     "status": "Resolved",
-    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments\n2025-11-05 22:55:36 - Integrated stripe payment processing",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments\n2025-11-05 22:55:36 - Integrated stripe payment processing\n2025-11-05 22:58:18 - Integrated stripe payment processing",
     "solved": true
   },
   {
