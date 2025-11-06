@@ -36,6 +36,9 @@ class BugReportingBot:
         # Completed bug reports
         self.completed_reports: List[BugReport] = []
         
+        # Success flag determined by LLM during final analysis
+        self.conversation_success: bool = False
+        
         # Conversation trace for auditing
         self.trace: List[Dict[str, Any]] = []
     
@@ -221,10 +224,11 @@ class BugReportingBot:
         
         return assistant_message.content or ""
     
-    def _analyze_conversation_for_reports(self) -> List[BugReport]:
+    def _analyze_conversation_for_reports(self) -> tuple[bool, List[BugReport]]:
         """
         FINAL ANALYSIS: Analyze entire conversation and extract all completed bug reports.
         This is done ONCE at the end, after conversation is complete.
+        Returns (success: bool, reports: List[BugReport])
         """
         # Build full conversation text
         conv_text = ""
@@ -247,7 +251,7 @@ class BugReportingBot:
             
             extracted_text = response.choices[0].message.content.strip()
             
-            # Find and parse JSON array - handle markdown code blocks
+            # Find and parse JSON - handle markdown code blocks
             # Remove markdown code blocks if present
             if '```' in extracted_text:
                 # Extract content between ``` markers
@@ -258,17 +262,20 @@ class BugReportingBot:
                         extracted_text = extracted_text[4:]  # Remove 'json' language tag
                     extracted_text = extracted_text.strip()
             
-            # Find and parse JSON array
-            start = extracted_text.find('[')
-            end = extracted_text.rfind(']') + 1
+            # Find and parse JSON object (not array) - now expects {success, reports}
+            start = extracted_text.find('{')
+            end = extracted_text.rfind('}') + 1
             
             if start >= 0 and end > start:
                 json_str = extracted_text[start:end]
-                parsed_list = json.loads(json_str)
+                parsed_obj = json.loads(json_str)
                 
-                # Convert to BugReport objects
+                # Extract success flag (LLM-determined)
+                success = parsed_obj.get('success', False)
+                
+                # Extract and convert reports
                 reports = []
-                for item in parsed_list:
+                for item in parsed_obj.get('reports', []):
                     try:
                         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                         report = BugReport(
@@ -281,11 +288,11 @@ class BugReportingBot:
                     except (KeyError, ValueError) as e:
                         pass
                 
-                return reports
+                return success, reports
         except Exception:
             pass
         
-        return []
+        return False, []
     
     def _should_end_conversation(self) -> bool:
         """Detect if conversation should end.
@@ -370,7 +377,8 @@ class BugReportingBot:
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
         
         # After loop ends (either naturally or from break), run final analysis
-        self.completed_reports = self._analyze_conversation_for_reports()
+        # LLM determines success based on conversation quality
+        self.conversation_success, self.completed_reports = self._analyze_conversation_for_reports()
         
         # Show final summary to user
         summary = self._get_final_summary()
@@ -378,14 +386,9 @@ class BugReportingBot:
         self.trace.append({"type": "message", "role": "assistant", "content": summary})
     
     def get_structured_output(self) -> ConversationOutput:
-        """Generate final structured output."""
-        if self.completed_reports:
-            return ConversationOutput(
-                success=True,
-                reports=self.completed_reports
-            )
-        
+        """Generate final structured output using LLM-determined success."""
+        # Use the success flag determined by the LLM during final analysis
         return ConversationOutput(
-            success=False,
-            reports=[]
+            success=self.conversation_success,
+            reports=self.completed_reports
         )
