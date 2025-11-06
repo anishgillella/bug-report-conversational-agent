@@ -3,41 +3,14 @@ LLM chat module for bug reporting via OpenRouter API.
 Pure LLM-driven conversation with minimal hardcoding.
 """
 import json
-import os
 from datetime import datetime
-from typing import Optional, List, Dict, Any
-from pathlib import Path
+from typing import List, Dict, Any
 from openai import OpenAI
-from pydantic import BaseModel, Field
+
+from config import Config
+from models import BugReport, ConversationOutput
+from prompts import ConversationPrompts, ExtractionPrompts, ToolDefinitions
 from data_manager import DataManager
-
-
-# Only essential Pydantic models
-class BugReport(BaseModel):
-    """Structured bug report from conversation."""
-    bug_id: int = Field(..., description="Unique bug identifier")
-    progress_note: str = Field(..., description="Timestamped progress entry")
-    status: str = Field(..., description="Bug status (Open, In Progress, Testing, Resolved, Closed)")
-    solved: bool = Field(..., description="Whether bug is solved")
-
-
-class ConversationOutput(BaseModel):
-    """Final structured output from conversation."""
-    success: bool = Field(..., description="Whether conversation gathered all required info")
-    report: Optional[BugReport] = Field(None, description="Bug report if successful")
-
-
-class ExtractedBugInfo(BaseModel):
-    """Extracted bug information from conversation."""
-    progress_note: Optional[str] = Field(None, description="Work done by user")
-    status: Optional[str] = Field(None, description="Current bug status")
-    solved: Optional[bool] = Field(None, description="Whether bug is solved")
-
-
-class ConversationEndSignal(BaseModel):
-    """Signal to determine if conversation should end."""
-    should_end: bool = Field(..., description="Whether to end the conversation")
-    reason: Optional[str] = Field(None, description="Why we should end or continue")
 
 
 class BugReportingBot:
@@ -45,117 +18,55 @@ class BugReportingBot:
     
     def __init__(self, data_manager: DataManager):
         """Initialize the bot with OpenRouter client and data manager."""
+        # Validate configuration
+        Config.validate()
+        
         self.data_manager = data_manager
         
         # Initialize OpenRouter client
-        api_key = os.getenv("OPENROUTER_API_KEY")
-        model = os.getenv("OPENROUTER_MODEL")
-        
-        if not api_key or not model:
-            raise ValueError("OPENROUTER_API_KEY and OPENROUTER_MODEL must be set in environment")
-        
-        self.client = OpenAI(
-            api_key=api_key,
-            base_url="https://openrouter.ai/api/v1"
-        )
-        self.model = model
+        client_config = Config.get_api_client_config()
+        self.client = OpenAI(**client_config)
+        self.model = Config.OPENROUTER_MODEL
         
         # Conversation state
         self.messages: List[Dict[str, Any]] = []
         self.turn_count = 0
-        self.max_turns = 20
+        self.max_turns = Config.MAX_CONVERSATION_TURNS
         
-        # Gathered information (extracted from conversation)
-        self.developer_id: Optional[int] = None
-        self.selected_bug_id: Optional[int] = None
-        self.progress_note: Optional[str] = None
-        self.status: Optional[str] = None
-        self.solved: Optional[bool] = None
-        
-        # Conversation trace
-        self.trace: List[Dict[str, Any]] = []
+        # Completed bug reports
         self.completed_reports: List[BugReport] = []
+        
+        # Conversation trace for auditing
+        self.trace: List[Dict[str, Any]] = []
     
     def _get_system_prompt(self) -> str:
         """System prompt - guides LLM to conduct natural bug reporting conversation."""
-        return """You are a bug reporting assistant for a development team. Your role is to have a natural conversation with developers to gather bug updates.
-
-CONVERSATION FLOW:
-1. Start by asking the developer's name
-2. Use verify_developer tool to confirm the name
-3. If partial match, ask for confirmation
-4. Fetch their bugs using get_bugs_for_developer
-5. Ask which bug they want to report on
-6. Ask three specific things (one at a time):
-   - What work have you done on this bug?
-   - What is the current status? (Open, In Progress, Testing, Resolved, Closed)
-   - Is the bug now solved/working? (Yes/No)
-7. After getting all three, ask: "Is there anything else that needs updating?"
-8. If user wants to update more: repeat from step 5 for another bug
-9. If user says no or indicates they're done: end naturally
-
-IMPORTANT:
-- Keep conversation natural and conversational
-- Ask one question at a time
-- Wait for answers before proceeding
-- Use tools to fetch developer and bug information
-- Don't assume - always verify with user
-- When asking about more updates, be natural and conversational
-- When user indicates they're done, end the conversation gracefully
-
-WHEN DISPLAYING BUGS TO USER:
-- Show Bug ID, Description, Status, and Solved status for each bug
-- Format clearly so user can see all details
-- If user asks "what is the status", respond with ALL bug details (ID, Status, Solved)
-- When asking "which bug to report on", display complete bug information"""
+        return ConversationPrompts.get_system_prompt()
     
     def _get_tools(self) -> List[Dict[str, Any]]:
         """Define available tools for the LLM."""
-        return [
-            {
-                "type": "function",
-                "function": {
-                    "name": "verify_developer",
-                    "description": "Verify that a developer exists in the system by name",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "name": {
-                                "type": "string",
-                                "description": "The developer's name"
-                            }
-                        },
-                        "required": ["name"]
-                    }
-                }
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": "get_bugs_for_developer",
-                    "description": "Get all bugs assigned to a developer",
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "developer_id": {
-                                "type": "integer",
-                                "description": "The developer's ID"
-                            }
-                        },
-                        "required": ["developer_id"]
-                    }
-                }
-            }
-        ]
+        return ToolDefinitions.get_tools()
     
     def _execute_tool(self, tool_name: str, tool_input: Dict[str, Any]) -> str:
         """Execute a tool and return result as JSON string."""
         if tool_name == "verify_developer":
-            name = tool_input.get("name", "")
-            developer = self.data_manager.find_developer_by_name(name)
+            identifier = tool_input.get("name", "").strip()
+            developer = None
+            
+            # Try to parse as developer ID (number)
+            if identifier.isdigit():
+                dev_id = int(identifier)
+                # Find by ID
+                for dev in self.data_manager.developers:
+                    if dev["developer_id"] == dev_id:
+                        developer = dev
+                        break
+            
+            # If not a number or not found, try as name
+            if not developer:
+                developer = self.data_manager.find_developer_by_name(identifier)
             
             if developer:
-                self.developer_id = developer["developer_id"]
                 return json.dumps({
                     "success": True,
                     "developer_id": developer["developer_id"],
@@ -163,7 +74,7 @@ WHEN DISPLAYING BUGS TO USER:
                 })
             
             # Try to find partial matches
-            similar = self.data_manager.find_similar_developers(name)
+            similar = self.data_manager.find_similar_developers(identifier)
             if similar:
                 if len(similar) == 1:
                     return json.dumps({
@@ -186,7 +97,7 @@ WHEN DISPLAYING BUGS TO USER:
             names = [d["name"] for d in all_developers]
             return json.dumps({
                 "success": False,
-                "message": f"Developer '{name}' not found. Valid developers are: {', '.join(names)}"
+                "message": f"Developer '{identifier}' not found. Valid developers are: {', '.join(names)}"
             })
         
         elif tool_name == "get_bugs_for_developer":
@@ -209,7 +120,7 @@ WHEN DISPLAYING BUGS TO USER:
             model=self.model,
             messages=messages_with_system,
             tools=self._get_tools(),
-            max_tokens=500
+            max_tokens=Config.LLM_MAX_TOKENS
         )
         
         assistant_message = response.choices[0].message
@@ -254,7 +165,7 @@ WHEN DISPLAYING BUGS TO USER:
                     {"role": "system", "content": self._get_system_prompt()}
                 ] + self.messages,
                 tools=self._get_tools(),
-                max_tokens=500
+                max_tokens=Config.LLM_MAX_TOKENS
             )
             
             follow_up_message = follow_up_response.choices[0].message
@@ -273,195 +184,90 @@ WHEN DISPLAYING BUGS TO USER:
         
         return assistant_message.content or ""
     
-    def _extract_selected_bug_id(self) -> Optional[int]:
-        """Extract which bug the user selected from the conversation."""
-        # Get recent messages
-        recent_messages = self.messages[-6:]
-        
+    def _analyze_conversation_for_reports(self) -> List[BugReport]:
+        """
+        FINAL ANALYSIS: Analyze entire conversation and extract all completed bug reports.
+        This is done ONCE at the end, after conversation is complete.
+        """
+        # Build full conversation text
         conv_text = ""
-        for msg in recent_messages:
+        for msg in self.messages:
             role = msg.get("role", "").upper()
             content = msg.get("content", "").strip()
             conv_text += f"{role}: {content}\n"
         
-        prompt = f"""From this conversation, identify which Bug ID the user selected.
-        
-Conversation:
-{conv_text}
-
-Look for:
-1. User explicitly saying a bug ID number (e.g., "2" or "Bug 2")
-2. Bot confirming which bug is being worked on
-
-Return ONLY JSON:
-{{
-  "bug_id": <the bug ID number, or null if not yet selected>
-}}"""
+        # Get final analysis prompt
+        analysis_prompt = ExtractionPrompts.get_final_analysis_prompt().format(
+            conversation_text=conv_text
+        )
         
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=50
+                messages=[{"role": "user", "content": analysis_prompt}],
+                max_tokens=Config.EXTRACTION_MAX_TOKENS * 2  # More tokens for multiple reports
             )
             
             extracted_text = response.choices[0].message.content.strip()
             
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
+            # Find and parse JSON array - handle markdown code blocks
+            # Remove markdown code blocks if present
+            if '```' in extracted_text:
+                # Extract content between ``` markers
+                parts = extracted_text.split('```')
+                if len(parts) >= 2:
+                    extracted_text = parts[1]  # Get content between first ``` and second ```
+                    if extracted_text.startswith('json'):
+                        extracted_text = extracted_text[4:]  # Remove 'json' language tag
+                    extracted_text = extracted_text.strip()
+            
+            # Find and parse JSON array
+            start = extracted_text.find('[')
+            end = extracted_text.rfind(']') + 1
             
             if start >= 0 and end > start:
                 json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                return parsed.get("bug_id")
-        except Exception as e:
+                parsed_list = json.loads(json_str)
+                
+                # Convert to BugReport objects
+                reports = []
+                for item in parsed_list:
+                    try:
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        report = BugReport(
+                            bug_id=item['bug_id'],
+                            progress_note=f"{timestamp} - {item['progress_note']}",
+                            status=item['status'],
+                            solved=item['solved']
+                        )
+                        reports.append(report)
+                    except (KeyError, ValueError) as e:
+                        pass
+                
+                return reports
+        except Exception:
             pass
         
-        return None
-    
-    def _extract_info_from_conversation(self) -> ExtractedBugInfo:
-        """Extract bug report info from conversation history using Pydantic model."""
-        # Only extract from the MOST RECENT part of the conversation
-        recent_messages = self.messages[-10:]
-        
-        conv_text = ""
-        for msg in recent_messages:
-            role = msg.get("role", "").upper()
-            content = msg.get("content", "").strip()
-            conv_text += f"{role}: {content}\n"
-        
-        # Extraction prompt - simple and direct
-        extraction_prompt = f"""From this conversation, extract information the user said about Bug ID {self.selected_bug_id}.
-
-Recent Conversation:
-{conv_text}
-
-Return ONLY valid JSON (no other text):
-{{
-  "progress_note": "<user's exact words about work done, or null>",
-  "status": "<one of: Open, In Progress, Testing, Resolved, Closed, or null>",
-  "solved": <true/false/null>
-}}
-
-Rules:
-- progress_note: ONLY user's exact words in response to "what work have you done" - null if not mentioned
-- status: ONLY what the user actually said - null if not answered
-- solved: true if user said yes/solved/fixed/working, false if no/not solved, null if not answered"""
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": extraction_prompt}],
-                max_tokens=200
-            )
-            
-            extracted_text = response.choices[0].message.content.strip()
-            
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
-            
-            if start >= 0 and end > start:
-                json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                # Use Pydantic model for validation and type conversion
-                return ExtractedBugInfo(**parsed)
-        except Exception as e:
-            pass
-        
-        # Return empty model with all None values
-        return ExtractedBugInfo()
+        return []
     
     def _should_end_conversation(self) -> bool:
-        """Let LLM detect if conversation should end using Pydantic model."""
-        if not self.messages:
+        """Detect if conversation should end.
+        Checks if:
+        1. Last user message contains "no" (to "anything else?")
+        2. Reached max turns
+        3. Got EOF
+        """
+        if not self.messages or len(self.messages) < 10:
             return False
         
-        # NEVER end if no reports have been completed yet
-        if not self.completed_reports:
-            return False
-        
-        # Get recent conversation
-        recent = self.messages[-3:]
-        recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')[:100]}" for m in recent])
-        
-        # Use Pydantic schema for structured response
-        schema = ConversationEndSignal.model_json_schema()
-        
-        end_prompt = f"""Recent conversation:
-{recent_text}
-
-Return JSON matching this schema:
-{json.dumps(schema, indent=2)}
-
-Determine if we should END the bug reporting session:
-- should_end: true if user said "no" to "anything else", "done", "that's it", "i'm done", "nothing more", "no", etc.
-- should_end: false if user wants to continue or hasn't clearly indicated ending
-- reason: brief explanation
-
-Only set should_end to true if user clearly indicated they're done reporting."""
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": end_prompt}],
-                max_tokens=100
-            )
-            extracted_text = response.choices[0].message.content.strip()
-            
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
-            
-            if start >= 0 and end > start:
-                json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                signal = ConversationEndSignal(**parsed)
-                return signal.should_end
-        except Exception:
-            pass
-        
-        return False
-    
-    def _user_said_no_to_more_updates(self) -> bool:
-        """Check if user said 'no' to 'anything else that needs updating' using Pydantic."""
-        # Get the last few messages to check for "no" response
-        recent = self.messages[-2:]
-        recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')}" for m in recent])
-        
-        schema = ConversationEndSignal.model_json_schema()
-        
-        prompt = f"""Recent conversation:
-{recent_text}
-
-Return JSON matching this schema:
-{json.dumps(schema, indent=2)}
-
-Has the user said "no" to "anything else that needs updating?" or similar?
-- should_end: true if user clearly said "no", "nope", "nothing else", etc to more updates
-- should_end: false otherwise
-- reason: why or why not"""
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=100
-            )
-            extracted_text = response.choices[0].message.content.strip()
-            
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
-            
-            if start >= 0 and end > start:
-                json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                signal = ConversationEndSignal(**parsed)
-                return signal.should_end
-        except Exception:
-            pass
+        # Get last user message
+        for msg in reversed(self.messages):
+            if msg.get("role") == "user":
+                last_user = msg.get("content", "").lower().strip()
+                # Check if user said "no" to "anything else?"
+                if last_user in ["no", "nope", "no thanks", "nothing else", "done"]:
+                    return True
+                break
         
         return False
     
@@ -503,7 +309,7 @@ Has the user said "no" to "anything else that needs updating?" or similar?
             try:
                 user_input = input("You: ").strip()
             except EOFError:
-                # End of input stream - graceful exit
+                # End of input stream - run final analysis before breaking
                 break
             
             if user_input.lower() == "quit":
@@ -516,82 +322,33 @@ Has the user said "no" to "anything else that needs updating?" or similar?
             self.add_user_message(user_input)
             self.trace.append({"type": "message", "role": "user", "content": user_input})
             
-            # Get next bot response
+            # Check if user wants to end conversation BEFORE getting bot response
+            # This way we detect end signals before bot generates farewell
+            if self._should_end_conversation():
+                break
+            
+            # Get next bot response (only if conversation hasn't ended)
             bot_response = self.get_bot_response()
             print(f"Bot: {bot_response}\n")
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
-            
-            # First, try to extract the selected bug ID if not already selected
-            if self.selected_bug_id is None and self.developer_id is not None:
-                # Look for bug ID in recent conversation
-                selected = self._extract_selected_bug_id()
-                if selected:
-                    self.selected_bug_id = selected
-            
-            # Extract information from conversation after bot response
-            # Only extract if we've already selected a bug
-            if self.selected_bug_id is not None:
-                extracted = self._extract_info_from_conversation()
-                
-                # Update all fields using Pydantic model (None means not yet answered)
-                if extracted.progress_note:
-                    self.progress_note = extracted.progress_note
-                if extracted.status:
-                    self.status = extracted.status
-                if extracted.solved is not None:
-                    self.solved = extracted.solved
-            
-            # Check if we have a complete report (all 3 fields filled)
-            if (self.developer_id and self.selected_bug_id and 
-                self.progress_note and self.status is not None and 
-                self.solved is not None):
-                
-                # Save to completed reports if not already there
-                if self.selected_bug_id not in [r.bug_id for r in self.completed_reports]:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    report = BugReport(
-                        bug_id=self.selected_bug_id,
-                        progress_note=f"{timestamp} - {self.progress_note}",
-                        status=self.status,
-                        solved=self.solved
-                    )
-                    self.completed_reports.append(report)
-                    
-                    # Reset for next bug
-                    self.selected_bug_id = None
-                    self.progress_note = None
-                    self.status = None
-                    self.solved = None
-            
-            # Check if user wants to end (AFTER extracting all info)
-            if self._should_end_conversation():
-                # Show final summary to user
-                summary = self._get_final_summary()
-                print(f"Bot: {summary}\n")
-                self.trace.append({"type": "message", "role": "assistant", "content": summary})
-                break
+        
+        # After loop ends (either naturally or from break), run final analysis
+        self.completed_reports = self._analyze_conversation_for_reports()
+        
+        # Show final summary to user
+        summary = self._get_final_summary()
+        print(f"Bot: {summary}\n")
+        self.trace.append({"type": "message", "role": "assistant", "content": summary})
     
     def get_structured_output(self) -> ConversationOutput:
         """Generate final structured output."""
         if self.completed_reports:
             return ConversationOutput(
                 success=True,
-                report=self.completed_reports[0]
+                reports=self.completed_reports
             )
         
         return ConversationOutput(
             success=False,
-            report=None
+            reports=[]
         )
-    
-    def save_trace(self, trace_path: Path) -> None:
-        """Save conversation trace."""
-        trace_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(trace_path, 'w') as f:
-            json.dump(self.trace, f, indent=2)
-    
-    def save_output(self, output_path: Path) -> None:
-        """Save structured output."""
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
-            json.dump(self.get_structured_output().model_dump(), f, indent=2)
