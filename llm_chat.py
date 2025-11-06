@@ -6,7 +6,6 @@ import json
 import os
 from datetime import datetime
 from typing import Optional, List, Dict, Any
-from pathlib import Path
 from openai import OpenAI
 from pydantic import BaseModel, Field
 from data_manager import DataManager
@@ -424,47 +423,6 @@ Only set should_end to true if user clearly indicated they're done reporting."""
         
         return False
     
-    def _user_said_no_to_more_updates(self) -> bool:
-        """Check if user said 'no' to 'anything else that needs updating' using Pydantic."""
-        # Get the last few messages to check for "no" response
-        recent = self.messages[-2:]
-        recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')}" for m in recent])
-        
-        schema = ConversationEndSignal.model_json_schema()
-        
-        prompt = f"""Recent conversation:
-{recent_text}
-
-Return JSON matching this schema:
-{json.dumps(schema, indent=2)}
-
-Has the user said "no" to "anything else that needs updating?" or similar?
-- should_end: true if user clearly said "no", "nope", "nothing else", etc to more updates
-- should_end: false otherwise
-- reason: why or why not"""
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=100
-            )
-            extracted_text = response.choices[0].message.content.strip()
-            
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
-            
-            if start >= 0 and end > start:
-                json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                signal = ConversationEndSignal(**parsed)
-                return signal.should_end
-        except Exception:
-            pass
-        
-        return False
-    
     def _get_final_summary(self) -> str:
         """Generate a final summary of all completed reports using Pydantic models."""
         if not self.completed_reports:
@@ -583,15 +541,3 @@ Has the user said "no" to "anything else that needs updating?" or similar?
             success=False,
             report=None
         )
-    
-    def save_trace(self, trace_path: Path) -> None:
-        """Save conversation trace."""
-        trace_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(trace_path, 'w') as f:
-            json.dump(self.trace, f, indent=2)
-    
-    def save_output(self, output_path: Path) -> None:
-        """Save structured output."""
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, 'w') as f:
-            json.dump(self.get_structured_output().model_dump(), f, indent=2)

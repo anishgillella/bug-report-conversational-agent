@@ -43,9 +43,9 @@
     "bug_id": 6,
     "description": "Search functionality returns incorrect results for partial matches",
     "assigned_dev": 5,
-    "status": "In Progress",
-    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic",
-    "solved": false
+    "status": "Resolved",
+    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic\n2025-11-05 20:15:14 - Fixed the permission issues",
+    "solved": true
   },
   {
     "bug_id": 7,
@@ -67,8 +67,8 @@
     "bug_id": 9,
     "description": "File upload progress bar shows incorrect percentage",
     "assigned_dev": 2,
-    "status": "Open",
-    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic",
+    "status": "Testing",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 20:13:02 - Integrated file manager with tqdm so it shows correct percentage",
     "solved": false
   },
   {
