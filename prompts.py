@@ -37,8 +37,11 @@ class ConversationPrompts:
    - "What work have you done on this bug?" (accept any input)
    - "What is the current status? (Open, In Progress, Testing, Resolved, Closed)" 
      - If user gives multiple statuses or unclear answer, ask again: "Please choose ONE status"
+   - VALIDATION: If status is "In Progress" and they say solved=Yes, ask for clarification:
+     "You said it's 'In Progress' but also that it's solved. Did you mean 'Resolved'?"
    - "Is the bug now solved/working? (Yes/No)"
      - Only accept Yes or No, if unclear ask again
+     - NOTE: If they say "Yes" but status is "In Progress", suggest "Resolved" status
 8. Ask "Is there anything else that needs updating?"
 9. If YES: Go back to step 6 for another bug
 10. If NO: Say goodbye and end
@@ -50,6 +53,9 @@ IMPORTANT:
 - Never skip questions
 - Never show summaries - just collect information
 - Be natural but simple
+- TRACK CONVERSATION LENGTH: After ~15 user responses, warn user that we're near the 20-turn limit
+  Example: "Note: We're approaching the conversation limit. Please summarize any remaining updates."
+- If conversation reaches 20 turns, wrap up gracefully and end
 
 Just have a normal conversation. Don't worry about extracting or analyzing - the extraction happens later."""
 
@@ -71,18 +77,26 @@ For EACH bug reported, extract EXACTLY:
   If user gave multiple statuses, pick the most recent/clear one
 - solved: true if user said yes/solved/fixed, false if said no
 
+LOGICAL VALIDATION RULES:
+- If status is "Open", "In Progress", or "Testing" → solved MUST be false
+- If status is "Resolved" or "Closed" → solved can be true or false
+- If extracted data violates these rules, FIX IT (adjust status or solved accordingly)
+  Example: If status="In Progress" and solved=true → change to solved=false
+           OR change status to "Resolved" if the user clearly fixed it
+
 CONVERSATION:
 {conversation_text}
 
 Return ONLY a JSON array like this:
 [
-  {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Testing", "solved": true}},
+  {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Resolved", "solved": true}},
   {{"bug_id": 5, "progress_note": "Added email queue", "status": "In Progress", "solved": false}}
 ]
 
 CRITICAL:
 - FIX spelling mistakes in progress_note
 - Use ONLY ONE status per bug (the clearest/most recent)
+- ENFORCE LOGICAL CONSISTENCY between status and solved
 - Extract from ACTUAL user responses only
 - If a bug was discussed but not fully reported, skip it"""
 
