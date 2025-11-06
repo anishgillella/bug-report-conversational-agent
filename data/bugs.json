@@ -4,7 +4,7 @@
     "description": "User authentication fails when using special characters in password",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 20:30:55 - Added error handling for edge cases",
     "solved": true
   },
   {
@@ -12,7 +12,7 @@
     "description": "Database connection timeout after 30 seconds of inactivity",
     "assigned_dev": 2,
     "status": "In Progress",
-    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling",
+    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling\n2025-11-05 20:31:17 - Implemented connection pooling",
     "solved": false
   },
   {
@@ -44,7 +44,7 @@
     "description": "Search functionality returns incorrect results for partial matches",
     "assigned_dev": 5,
     "status": "Resolved",
-    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic\n2025-11-05 20:15:14 - Fixed the permission issues",
+    "progress_notes": "2024-01-25 09:15:00 - Analyzed search algorithm\n2024-01-25 13:20:00 - Identified fuzzy matching issues\n2024-01-26 10:00:00 - Started implementing improved search logic\n2025-11-05 20:15:14 - Fixed the permission issues\n2025-11-05 20:22:51 - Fixed the permission logic\n2025-11-05 20:24:25 - Fixed the permission logic\n2025-11-05 20:25:33 - Fixed the permission logic\n2025-11-05 20:26:28 - Fixed the permission logic",
     "solved": true
   },
   {
@@ -59,8 +59,8 @@
     "bug_id": 8,
     "description": "Payment processing fails for international credit cards",
     "assigned_dev": 7,
-    "status": "Testing",
-    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments",
+    "status": "Closed",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments\n2025-11-05 20:28:08 - Integrated Stripe for international payments",
     "solved": true
   },
   {
