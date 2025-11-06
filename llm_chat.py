@@ -169,12 +169,49 @@ class BugReportingBot:
             )
             
             follow_up_message = follow_up_response.choices[0].message
-            self.messages.append({
-                "role": "assistant",
-                "content": follow_up_message.content
-            })
             
-            return follow_up_message.content or ""
+            # Check if follow-up has ANOTHER tool call (recursive case)
+            if hasattr(follow_up_message, 'tool_calls') and follow_up_message.tool_calls:
+                # Another tool call! Add this message and execute the nested tools
+                self.messages.append({
+                    "role": "assistant",
+                    "content": follow_up_message.content or "",
+                    "tool_calls": [
+                        {
+                            "id": tc.id,
+                            "type": "function",
+                            "function": {
+                                "name": tc.function.name,
+                                "arguments": tc.function.arguments
+                            }
+                        }
+                        for tc in follow_up_message.tool_calls
+                    ]
+                })
+                
+                # Execute the nested tool calls
+                for tool_call in follow_up_message.tool_calls:
+                    tool_result = self._execute_tool(
+                        tool_call.function.name,
+                        json.loads(tool_call.function.arguments)
+                    )
+                    
+                    # Add tool result to messages
+                    self.messages.append({
+                        "role": "tool",
+                        "tool_call_id": tool_call.id,
+                        "content": tool_result
+                    })
+                
+                # Now recursively handle any further tool calls
+                return self.get_bot_response()
+            else:
+                # Regular text response - add and return it
+                self.messages.append({
+                    "role": "assistant",
+                    "content": follow_up_message.content
+                })
+                return follow_up_message.content or ""
         
         # No tool calls - just regular response
         self.messages.append({

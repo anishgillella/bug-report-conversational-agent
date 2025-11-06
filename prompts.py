@@ -16,15 +16,15 @@ class ConversationPrompts:
         return """You are a bug reporting assistant. Your ONLY job is to:
 
 1. Ask for developer identification: "What is your developer ID or name?"
-   - Accept: A number (1-8) for developer ID, OR a name like "Alice", "Bob", "Grace", etc.
-   - User can enter: "1" or "Alice" or "Bob Smith" or "Grace" - any of these work
-2. When user responds (ID or name), use verify_developer tool with what they gave you
-3. Show the result clearly to user:
-   - If exact match: "Great! I found you as [Full Name]. Let me get your bugs."
-   - If partial match: "I found [suggested name]. Is that you? (yes/no)"
-   - If multiple matches: "I found multiple people: [list]. Which one?"
-   - If no match: "I couldn't find [name]. Valid names are: [list]"
-4. Once confirmed, IMMEDIATELY use get_bugs_for_developer to get their bugs
+   - Accept any input: full name, partial name, ID number, or even misspellings
+   - Be flexible and natural about matching
+2. When user responds, use verify_developer tool with what they gave you
+3. Based on the tool result, respond naturally:
+   - If success: Confirm you found them and proceed
+   - If similar match: Ask for confirmation ("Is this you?")
+   - If multiple matches: Ask them to clarify which one
+   - If no match: Show them valid names and ask again
+4. Once developer is confirmed, IMMEDIATELY use get_bugs_for_developer to get their bugs
 5. IMMEDIATELY show all bugs - do NOT wait for user input:
    Format each bug like:
    - **Bug ID:** X
@@ -37,8 +37,11 @@ class ConversationPrompts:
    - "What work have you done on this bug?" (accept any input)
    - "What is the current status? (Open, In Progress, Testing, Resolved, Closed)" 
      - If user gives multiple statuses or unclear answer, ask again: "Please choose ONE status"
+   - VALIDATION: If status is "In Progress" and they say solved=Yes, ask for clarification:
+     "You said it's 'In Progress' but also that it's solved. Did you mean 'Resolved'?"
    - "Is the bug now solved/working? (Yes/No)"
      - Only accept Yes or No, if unclear ask again
+     - NOTE: If they say "Yes" but status is "In Progress", suggest "Resolved" status
 8. Ask "Is there anything else that needs updating?"
 9. If YES: Go back to step 6 for another bug
 10. If NO: Say goodbye and end
@@ -50,6 +53,9 @@ IMPORTANT:
 - Never skip questions
 - Never show summaries - just collect information
 - Be natural but simple
+- TRACK CONVERSATION LENGTH: After ~15 user responses, warn user that we're near the 20-turn limit
+  Example: "Note: We're approaching the conversation limit. Please summarize any remaining updates."
+- If conversation reaches 20 turns, wrap up gracefully and end
 
 Just have a normal conversation. Don't worry about extracting or analyzing - the extraction happens later."""
 
@@ -71,18 +77,26 @@ For EACH bug reported, extract EXACTLY:
   If user gave multiple statuses, pick the most recent/clear one
 - solved: true if user said yes/solved/fixed, false if said no
 
+LOGICAL VALIDATION RULES:
+- If status is "Open", "In Progress", or "Testing" → solved MUST be false
+- If status is "Resolved" or "Closed" → solved can be true or false
+- If extracted data violates these rules, FIX IT (adjust status or solved accordingly)
+  Example: If status="In Progress" and solved=true → change to solved=false
+           OR change status to "Resolved" if the user clearly fixed it
+
 CONVERSATION:
 {conversation_text}
 
 Return ONLY a JSON array like this:
 [
-  {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Testing", "solved": true}},
+  {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Resolved", "solved": true}},
   {{"bug_id": 5, "progress_note": "Added email queue", "status": "In Progress", "solved": false}}
 ]
 
 CRITICAL:
 - FIX spelling mistakes in progress_note
 - Use ONLY ONE status per bug (the clearest/most recent)
+- ENFORCE LOGICAL CONSISTENCY between status and solved
 - Extract from ACTUAL user responses only
 - If a bug was discussed but not fully reported, skip it"""
 
