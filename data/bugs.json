@@ -4,7 +4,7 @@
     "description": "User authentication fails when using special characters in password",
     "assigned_dev": 1,
     "status": "Resolved",
-    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production",
+    "progress_notes": "2024-01-15 09:30:00 - Investigated password validation logic\n2024-01-15 14:20:00 - Updated regex pattern to handle special characters\n2024-01-16 10:15:00 - Tested with various special character combinations\n2024-01-16 16:45:00 - Deployed fix to production\n2025-11-05 22:44:31 - Fixed the authentication issue\n2025-11-05 22:47:07 - Fixed special character handling\n2025-11-05 22:51:13 - Fixed special character handling",
     "solved": true
   },
   {
@@ -35,9 +35,9 @@
     "bug_id": 5,
     "description": "Email notifications not being sent for bug updates",
     "assigned_dev": 1,
-    "status": "Resolved",
-    "progress_notes": "2024-01-12 09:00:00 - Investigated SMTP server logs\n2024-01-12 11:45:00 - Found authentication issue with email service\n2024-01-13 08:30:00 - Updated SMTP credentials\n2024-01-13 10:15:00 - Added retry logic for failed sends\n2024-01-13 16:00:00 - Tested notification delivery",
-    "solved": true
+    "status": "In Progress",
+    "progress_notes": "2024-01-12 09:00:00 - Investigated SMTP server logs\n2024-01-12 11:45:00 - Found authentication issue with email service\n2024-01-13 08:30:00 - Updated SMTP credentials\n2024-01-13 10:15:00 - Added retry logic for failed sends\n2024-01-13 16:00:00 - Tested notification delivery\n2025-11-05 22:51:13 - Implemented email queue system",
+    "solved": false
   },
   {
     "bug_id": 6,
@@ -59,8 +59,8 @@
     "bug_id": 8,
     "description": "Payment processing fails for international credit cards",
     "assigned_dev": 7,
-    "status": "Testing",
-    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments",
+    "status": "Resolved",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments\n2025-11-05 22:45:43 - Integrated stripe for international payments",
     "solved": true
   },
   {
@@ -68,7 +68,7 @@
     "description": "File upload progress bar shows incorrect percentage",
     "assigned_dev": 2,
     "status": "Resolved",
-    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 22:40:11 - Fixed the progress calculation\n2025-11-05 22:40:39 - Fixed the progress calculation\n2025-11-05 22:41:19 - Fixed the progress calculation\n2025-11-05 22:41:45 - Fixed the progress calculation",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 22:40:11 - Fixed the progress calculation\n2025-11-05 22:40:39 - Fixed the progress calculation\n2025-11-05 22:41:19 - Fixed the progress calculation\n2025-11-05 22:41:45 - Fixed the progress calculation\n2025-11-05 22:42:23 - Fixed\n2025-11-05 22:43:27 - Fixed the progress calculation",
     "solved": true
   },
   {

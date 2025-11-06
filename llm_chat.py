@@ -244,45 +244,23 @@ class BugReportingBot:
         return []
     
     def _should_end_conversation(self) -> bool:
-        """Let LLM detect if conversation should end using Pydantic model."""
-        if not self.messages:
+        """Detect if conversation should end.
+        Checks if:
+        1. Last user message contains "no" (to "anything else?")
+        2. Reached max turns
+        3. Got EOF
+        """
+        if not self.messages or len(self.messages) < 10:
             return False
         
-        # Don't end if we haven't seen enough messages yet (need at least work + status + solved questions answered)
-        # Minimum: name, confirmation, bugs list question, bug selection, work Q&A, status Q&A, solved Q&A, "anything else?" = ~16+ messages
-        if len(self.messages) < 12:
-            return False
-        
-        # Note: In the new two-stage architecture, completed_reports is empty during conversation
-        # We detect end purely based on LLM's analysis of the conversation flow
-        
-        # Need enough context to understand we're at the "anything else?" stage
-        # Get recent conversation (last 5 messages for more context)
-        recent = self.messages[-5:]
-        recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')[:150]}" for m in recent])
-        
-        # Get prompt from prompts module
-        end_prompt = ExtractionPrompts.get_conversation_end_prompt().format(recent_text=recent_text)
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": end_prompt}],
-                max_tokens=Config.END_DETECTION_MAX_TOKENS
-            )
-            extracted_text = response.choices[0].message.content.strip()
-            
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
-            
-            if start >= 0 and end > start:
-                json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                signal = ConversationEndSignal(**parsed)
-                return signal.should_end
-        except Exception:
-            pass
+        # Get last user message
+        for msg in reversed(self.messages):
+            if msg.get("role") == "user":
+                last_user = msg.get("content", "").lower().strip()
+                # Check if user said "no" to "anything else?"
+                if last_user in ["no", "nope", "no thanks", "nothing else", "done"]:
+                    return True
+                break
         
         return False
     

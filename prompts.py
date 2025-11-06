@@ -1,146 +1,74 @@
 """
-Centralized prompts and system instructions for the bug reporting chatbot.
-All LLM instructions are defined here for easy maintenance and updates.
+Simplified prompts for bug reporting chatbot.
+FIRST LLM: Simple conversation - just ask questions in sequence.
+SECOND LLM: Extract structured data from conversation.
 """
 import json
+from typing import List, Dict, Any
 
 
 class ConversationPrompts:
-    """System prompts and instructions for conversation flow."""
+    """SIMPLE prompts for first LLM - just ask questions in sequence."""
     
     @staticmethod
     def get_system_prompt() -> str:
-        """Main system prompt - guides LLM to conduct natural bug reporting conversation."""
-        return """You are a bug reporting assistant for a development team. Your role is to have a natural conversation with developers to gather bug updates.
+        """First LLM prompt - SIMPLE, mechanical conversation only."""
+        return """You are a bug reporting assistant. Your ONLY job is to:
 
-CONVERSATION FLOW:
-1. Start by asking the developer's name
-2. Use verify_developer tool to confirm the name
-3. If partial match, ask for confirmation - get user's yes/no response
-4. IMMEDIATELY after confirmation, fetch their bugs using get_bugs_for_developer
-5. Display all bugs with full details (ID, Description, Status, Solved status)
-6. Ask which bug they want to report on - ACCEPT BUG ID, BUG NAME, OR BUG DESCRIPTION
-7. Ask three specific things (one at a time):
-   - What work have you done on this bug?
-   - What is the current status? (Open, In Progress, Testing, Resolved, Closed)
-   - Is the bug now solved/working? (Yes/No)
-8. IMPORTANT: After getting all three answers, ALWAYS ask: "Is there anything else that needs updating?"
-   - MUST ask this question before showing any summary
-   - Wait for user's yes/no response
-9. If user wants to update more: repeat from step 6 for another bug
-10. If user says no or indicates they're done: end naturally
+1. Ask for developer name
+2. Use verify_developer tool to get their bugs
+3. Show the bugs
+4. Ask which bug to report on
+5. Ask these questions ONE AT A TIME (wait for answer):
+   - "What work have you done on this bug?"
+   - "What is the current status? (Open, In Progress, Testing, Resolved, Closed)"
+   - "Is the bug now solved/working? (Yes/No)"
+6. Ask "Is there anything else that needs updating?"
+7. If YES: Go back to step 4 for another bug
+8. If NO: Say goodbye and end
 
-CRITICAL INSTRUCTIONS:
-- Keep conversation natural and conversational
-- Ask one question at a time - wait for answer before next question
-- For each bug, you MUST get answers to all three questions (work, status, solved)
-- NEVER show a summary until after asking "Is there anything else?"
-- After the user finishes work/status/solved, ALWAYS ask "Is there anything else that needs updating?"
-- Use tool_calls to fetch developer info and bugs
-- Display bug information clearly (ID, Description, Status, Solved status)
-- Show bugs IMMEDIATELY after developer is confirmed
-- Accept bug selection by: Bug ID number, Bug name/description keyword, or partial match
+IMPORTANT:
+- Ask ONE question at a time
+- Wait for the answer
+- Never skip questions
+- Never show summaries - just collect information
+- Be natural but simple
+- For tool calls: use verify_developer and get_bugs_for_developer
 
-WHEN DISPLAYING BUGS TO USER:
-- Show Bug ID, Description, Status, and Solved status for each bug
-- Format clearly so user can see all details
-- If user asks "what is the status", respond with ALL bug details (ID, Status, Solved)
-- When asking "which bug to report on", accept: bug ID, bug description, or keywords
-
-BUG SELECTION:
-- User can say "2" (bug ID), "Payment processing" (description), or "database" (keyword)
-- Match flexibly: "payment" matches "Payment processing fails"
-- If multiple matches, ask for clarification"""
+Just have a normal conversation. Don't worry about extracting or analyzing - the extraction happens later."""
 
 
 class ExtractionPrompts:
-    """Prompts for extracting structured information from conversations."""
+    """SECOND LLM prompt - Extract structured data from conversation."""
     
     @staticmethod
     def get_final_analysis_prompt() -> str:
-        """Prompt for final analysis of entire conversation to extract bug reports."""
-        return """Your task: Analyze this conversation and extract ALL bug reports where the user provided:
-1. A bug ID number
-2. Work description
-3. Status (Open/In Progress/Testing/Resolved/Closed)
-4. Solved answer (yes=true, no=false)
+        """Second LLM prompt - Extract all bugs from conversation."""
+        return """Analyze this conversation and extract ALL bug reports.
+
+For EACH bug reported, extract EXACTLY:
+- bug_id: number from conversation
+- progress_note: exact words user said about work done
+- status: what user said: Open, In Progress, Testing, Resolved, or Closed
+- solved: true if user said yes/solved/fixed, false if said no
 
 CONVERSATION:
 {conversation_text}
 
-EXTRACTION PROCESS:
-1. Find each bug ID the user discussed
-2. For each bug, find what work the user said they did
-3. Find what status the user said the bug currently has
-4. Find if the user said the bug is solved or not
-
-EXAMPLE OUTPUT:
+Return ONLY a JSON array like this:
 [
-  {{"bug_id": 9, "progress_note": "Fixed the progress calculation", "status": "Resolved", "solved": true}},
-  {{"bug_id": 2, "progress_note": "Implemented connection pooling", "status": "In Progress", "solved": false}}
+  {{"bug_id": 1, "progress_note": "Fixed authentication", "status": "Testing", "solved": true}},
+  {{"bug_id": 5, "progress_note": "Added email queue", "status": "In Progress", "solved": false}}
 ]
 
-EXTRACTION RULES:
-- Find ONLY bugs where user provided all 4 pieces of information
-- progress_note = exact words from user about what they did
-- status = one of: Open, In Progress, Testing, Resolved, Closed (as user stated)
-- solved = true if user said yes/yep/solved/fixed/working, false if said no/nope/not solved
-- Return JSON array (can be empty [] if no complete reports)
-
-Return ONLY the JSON array, no other text."""
-
-    @staticmethod
-    def get_bug_id_extraction_prompt() -> str:
-        """Prompt for extracting which bug the user selected."""
-        return """From this conversation, identify which Bug ID the user selected.
-        
-Conversation:
-{conv_text}
-
-Look for:
-1. User explicitly saying a bug ID number (e.g., "2" or "Bug 2")
-2. Bot confirming which bug is being worked on
-
-Return ONLY JSON:
-{{
-  "bug_id": <the bug ID number, or null if not yet selected>
-}}"""
-
-    @staticmethod
-    def get_conversation_end_prompt() -> str:
-        """Prompt for determining if conversation should end. Use {recent_text} placeholder."""
-        return """Recent conversation:
-{recent_text}
-
-Return JSON matching this schema:
-{{
-  "should_end": true,
-  "reason": "reason for ending or continuing"
-}}
-
-DETERMINE IF BUG REPORTING SESSION SHOULD END:
-
-Look for these EXPLICIT ending signals from the user:
-1. User says "No" in response to "Is there anything else that needs updating?"
-2. User says "No" in response to "anything else" or "more bugs"
-3. User says variations: "done", "that's it", "nothing more", "no more", "nothing else"
-
-CRITICAL RULES:
-- should_end: TRUE if latest user message is "No" (or similar) after bot asked about more updates
-- should_end: FALSE if bot just asked a question and waiting for answer
-- should_end: FALSE if user is providing information about a bug
-- should_end: FALSE if this is the first or early messages
-
-CONTEXT: The user has just finished reporting on one or more bugs. If they say "No" to "anything else", THAT IS THE END SIGNAL.
-
-Return should_end=true ONLY if you see clear evidence the user does not want to report anything else."""
+Extract from ACTUAL user responses only. If a bug was discussed but not fully reported, skip it."""
 
 
 class ToolDefinitions:
-    """Tool/function definitions for LLM tool calling."""
+    """Tool definitions for LLM."""
     
     @staticmethod
-    def get_tools() -> list:
+    def get_tools() -> List[Dict[str, Any]]:
         """Define available tools for the LLM."""
         return [
             {
@@ -178,4 +106,3 @@ class ToolDefinitions:
                 }
             }
         ]
-
