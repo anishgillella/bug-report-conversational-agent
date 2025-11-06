@@ -255,33 +255,36 @@ IMPORTANT:
         return assistant_message.content or ""
     
     def _extract_info_from_conversation(self) -> Dict[str, Any]:
-        """Extract bug report info from entire conversation history."""
-        # Build conversation text from ALL messages for context
+        """Extract bug report info from conversation history."""
+        # Use LLM to find and extract the most recent bug report from full conversation
+        # This is more robust than trying to parse message order ourselves
+        
         conv_text = ""
-        for msg in self.messages:  # All messages for full context
+        for msg in self.messages:
             role = msg.get("role", "").upper()
             content = msg.get("content", "").strip()
             conv_text += f"{role}: {content}\n"
         
-        extraction_prompt = f"""From this ENTIRE conversation, extract the MOST RECENT bug report as JSON:
+        # Simple but effective extraction prompt
+        extraction_prompt = f"""From this conversation, extract the MOST RECENT user responses to these questions.
+Find what the user ACTUALLY SAID (not bot descriptions):
 
+Conversation:
 {conv_text}
 
-Return ONLY this JSON (no other text):
+Return ONLY JSON:
 {{
-  "bug_id": <number or null if not found>,
-  "progress_note": "<work description, no status words>",
-  "status": "<Open/In Progress/Testing/Resolved/Closed or null>",
-  "solved": <true/false or null>
+  "bug_id": <number of the bug being discussed, or null>,
+  "progress_note": "<EXACTLY what user said to 'what work have you done' question>",
+  "status": "<EXACTLY what status the user mentioned: Open, In Progress, Testing, Resolved, or Closed>",
+  "solved": <true if user said yes/yep/fixed, false if said no/nope, null otherwise>
 }}
 
-CRITICAL: Extract the MOST RECENT/LATEST bug discussed:
-1. bug_id: The LATEST bug number the user selected (find the most recent "bug" or bug ID mentioned)
-2. progress_note: What the LATEST user response was to "what work have you done"
-3. status: The LATEST status the user mentioned (exact word from: Open, In Progress, Testing, Resolved, Closed)
-4. solved: The LATEST yes/no answer to "is the bug solved/working"
-
-If multiple bugs are discussed, focus on the MOST RECENT one."""
+CRITICAL:
+- progress_note: User's EXACT words in response to "what work have you done"
+- status: One of the 5 status values, from user's answer to "what is current status"
+- solved: Boolean from user's answer to "is the bug solved/working"
+- Look only at USER messages, not bot summaries or descriptions"""
         
         try:
             response = self.client.chat.completions.create(
