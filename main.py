@@ -61,16 +61,19 @@ def main():
     
     # Save conversation trace
     results_dir = Path("results")
-    results_dir.mkdir(exist_ok=True)
+    traces_dir = results_dir / "traces"
+    outputs_dir = results_dir / "outputs"
+    traces_dir.mkdir(parents=True, exist_ok=True)
+    outputs_dir.mkdir(parents=True, exist_ok=True)
     
-    trace_file = results_dir / f"trace_{len(list(results_dir.glob('trace_*.json'))) + 1}.json"
+    trace_file = traces_dir / f"trace_{len(list(traces_dir.glob('trace_*.json'))) + 1}.json"
     with open(trace_file, "w") as f:
         json.dump(bot.trace, f, indent=2)
     
     print(f"✓ Conversation trace saved to: {trace_file}")
     
     # Save structured output
-    output_file = results_dir / f"output_{len(list(results_dir.glob('output_*.json'))) + 1}.json"
+    output_file = outputs_dir / f"output_{len(list(outputs_dir.glob('output_*.json'))) + 1}.json"
     with open(output_file, "w") as f:
         json.dump(output.model_dump(), f, indent=2)
     

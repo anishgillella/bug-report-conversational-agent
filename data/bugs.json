@@ -11,9 +11,9 @@
     "bug_id": 2,
     "description": "Database connection timeout after 30 seconds of inactivity",
     "assigned_dev": 2,
-    "status": "Resolved",
-    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling\n2025-11-05 19:35:29 - Increased the timeout to sustain over the user session\n2025-11-05 19:37:37 - Increased timeout value significantly\n2025-11-05 19:41:53 - Increased timeout value significantly\n2025-11-05 19:42:35 - Increased timeout value significantly",
-    "solved": true
+    "status": "Testing",
+    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling\n2025-11-05 19:35:29 - Increased the timeout to sustain over the user session\n2025-11-05 19:37:37 - Increased timeout value significantly\n2025-11-05 19:41:53 - Increased timeout value significantly\n2025-11-05 19:42:35 - Increased timeout value significantly\n2025-11-05 19:44:32 - Increased timeout to sustain over suer session",
+    "solved": false
   },
   {
     "bug_id": 3,
@@ -59,8 +59,8 @@
     "bug_id": 8,
     "description": "Payment processing fails for international credit cards",
     "assigned_dev": 7,
-    "status": "Testing",
-    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments",
+    "status": "Resolved",
+    "progress_notes": "2024-01-23 08:30:00 - Investigated payment gateway logs\n2024-01-23 12:15:00 - Identified missing international card support\n2024-01-24 09:00:00 - Integrated additional payment provider\n2024-01-24 14:45:00 - Testing with various international cards\n2025-11-05 14:35:16 - Integrated stripe for international payments\n2025-11-05 19:46:11 - Added caching to the API calls",
     "solved": true
   },
   {
