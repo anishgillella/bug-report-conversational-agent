@@ -248,12 +248,18 @@ class BugReportingBot:
         if not self.messages:
             return False
         
+        # Don't end if we haven't seen enough messages yet (need at least work + status + solved questions answered)
+        # Minimum: name, confirmation, bugs list question, bug selection, work Q&A, status Q&A, solved Q&A, "anything else?" = ~16+ messages
+        if len(self.messages) < 12:
+            return False
+        
         # Note: In the new two-stage architecture, completed_reports is empty during conversation
         # We detect end purely based on LLM's analysis of the conversation flow
         
-        # Get recent conversation
-        recent = self.messages[-3:]
-        recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')[:100]}" for m in recent])
+        # Need enough context to understand we're at the "anything else?" stage
+        # Get recent conversation (last 5 messages for more context)
+        recent = self.messages[-5:]
+        recent_text = "\n".join([f"{m.get('role')}: {m.get('content', '')[:150]}" for m in recent])
         
         # Get prompt from prompts module
         end_prompt = ExtractionPrompts.get_conversation_end_prompt().format(recent_text=recent_text)

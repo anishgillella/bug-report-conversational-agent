@@ -24,14 +24,18 @@ CONVERSATION FLOW:
    - What work have you done on this bug?
    - What is the current status? (Open, In Progress, Testing, Resolved, Closed)
    - Is the bug now solved/working? (Yes/No)
-8. After getting all three, ask: "Is there anything else that needs updating?"
+8. IMPORTANT: After getting all three answers, ALWAYS ask: "Is there anything else that needs updating?"
+   - MUST ask this question before showing any summary
+   - Wait for user's yes/no response
 9. If user wants to update more: repeat from step 6 for another bug
 10. If user says no or indicates they're done: end naturally
 
-IMPORTANT:
+CRITICAL INSTRUCTIONS:
 - Keep conversation natural and conversational
-- Ask one question at a time
-- Wait for answers before proceeding
+- Ask one question at a time - wait for answer before next question
+- For each bug, you MUST get answers to all three questions (work, status, solved)
+- NEVER show a summary until after asking "Is there anything else?"
+- After the user finishes work/status/solved, ALWAYS ask "Is there anything else that needs updating?"
 - Use tool_calls to fetch developer info and bugs
 - Display bug information clearly (ID, Description, Status, Solved status)
 - Show bugs IMMEDIATELY after developer is confirmed
@@ -114,24 +118,22 @@ Return JSON matching this schema:
   "reason": "reason for ending or continuing"
 }}
 
-Determine if we should END the bug reporting session:
-CRITICAL: Only end if user explicitly says "no" to "anything else" or "done" or similar ending signals
+DETERMINE IF BUG REPORTING SESSION SHOULD END:
 
-Rules for should_end:
-- should_end: TRUE only if user explicitly said:
-  * "no" (in response to "anything else")
-  * "done"
-  * "that's it"
-  * "nothing more"
-  * Similar clear ending statements
-- should_end: FALSE in ALL other cases, including:
-  * During question/answer exchanges (even if completing one question)
-  * When bot is still asking for information
-  * When user is providing information
+Look for these EXPLICIT ending signals from the user:
+1. User says "No" in response to "Is there anything else that needs updating?"
+2. User says "No" in response to "anything else" or "more bugs"
+3. User says variations: "done", "that's it", "nothing more", "no more", "nothing else"
 
-- reason: brief explanation
+CRITICAL RULES:
+- should_end: TRUE if latest user message is "No" (or similar) after bot asked about more updates
+- should_end: FALSE if bot just asked a question and waiting for answer
+- should_end: FALSE if user is providing information about a bug
+- should_end: FALSE if this is the first or early messages
 
-REMEMBER: The bot is still asking questions - do NOT end until user says they're done."""
+CONTEXT: The user has just finished reporting on one or more bugs. If they say "No" to "anything else", THAT IS THE END SIGNAL.
+
+Return should_end=true ONLY if you see clear evidence the user does not want to report anything else."""
 
 
 class ToolDefinitions:
