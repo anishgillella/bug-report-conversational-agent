@@ -260,37 +260,87 @@ WHEN DISPLAYING BUGS TO USER:
         
         return assistant_message.content or ""
     
-    def _extract_info_from_conversation(self) -> Dict[str, Any]:
-        """Extract bug report info from conversation history."""
-        # Use LLM to find and extract the most recent bug report from full conversation
-        # This is more robust than trying to parse message order ourselves
+    def _extract_selected_bug_id(self) -> Optional[int]:
+        """Extract which bug the user selected from the conversation."""
+        # Get recent messages
+        recent_messages = self.messages[-6:]
         
         conv_text = ""
-        for msg in self.messages:
+        for msg in recent_messages:
+            role = msg.get("role", "").upper()
+            content = msg.get("content", "").strip()
+            conv_text += f"{role}: {content}\n"
+        
+        prompt = f"""From this conversation, identify which Bug ID the user selected.
+        
+Conversation:
+{conv_text}
+
+Look for:
+1. User explicitly saying a bug ID number (e.g., "2" or "Bug 2")
+2. Bot confirming which bug is being worked on
+
+Return ONLY JSON:
+{{
+  "bug_id": <the bug ID number, or null if not yet selected>
+}}"""
+        
+        try:
+            response = self.client.chat.completions.create(
+                model=self.model,
+                messages=[{"role": "user", "content": prompt}],
+                max_tokens=50
+            )
+            
+            extracted_text = response.choices[0].message.content.strip()
+            
+            # Find and parse JSON
+            start = extracted_text.find('{')
+            end = extracted_text.rfind('}') + 1
+            
+            if start >= 0 and end > start:
+                json_str = extracted_text[start:end]
+                parsed = json.loads(json_str)
+                return parsed.get("bug_id")
+        except Exception as e:
+            pass
+        
+        return None
+    
+    def _extract_info_from_conversation(self) -> Dict[str, Any]:
+        """Extract bug report info from conversation history."""
+        # Only extract from the MOST RECENT part of the conversation
+        # Get the last 10 messages to avoid extracting old bug information
+        recent_messages = self.messages[-10:]
+        
+        conv_text = ""
+        for msg in recent_messages:
             role = msg.get("role", "").upper()
             content = msg.get("content", "").strip()
             conv_text += f"{role}: {content}\n"
         
         # Simple but effective extraction prompt
-        extraction_prompt = f"""From this conversation, extract the MOST RECENT user responses to these questions.
-Find what the user ACTUALLY SAID (not bot descriptions):
+        extraction_prompt = f"""From this conversation, extract information about Bug ID {self.selected_bug_id} ONLY.
+Ignore all other bugs mentioned earlier in the conversation.
 
-Conversation:
+Recent Conversation:
 {conv_text}
 
 Return ONLY JSON:
 {{
-  "bug_id": <number of the bug being discussed, or null>,
+  "bug_id": {self.selected_bug_id},
   "progress_note": "<EXACTLY what user said to 'what work have you done' question>",
   "status": "<EXACTLY what status the user mentioned: Open, In Progress, Testing, Resolved, or Closed>",
   "solved": <true if user said yes/yep/fixed, false if said no/nope, null otherwise>
 }}
 
-CRITICAL:
-- progress_note: User's EXACT words in response to "what work have you done"
-- status: One of the 5 status values, from user's answer to "what is current status"
-- solved: Boolean from user's answer to "is the bug solved/working"
-- Look only at USER messages, not bot summaries or descriptions"""
+CRITICAL INSTRUCTIONS:
+- ONLY extract information about Bug ID {self.selected_bug_id}
+- IGNORE any other bug IDs or bug discussions from earlier in the conversation
+- progress_note: User's EXACT words in response to "what work have you done" - null if not yet answered
+- status: One of [Open, In Progress, Testing, Resolved, Closed] from user's answer - null if not yet answered
+- solved: Boolean from user's answer to "is it solved/working" - null if not yet answered
+- Use null for any field the user hasn't answered yet"""
         
         try:
             response = self.client.chat.completions.create(
@@ -406,17 +456,25 @@ Answer with ONLY "YES" or "NO"."""
             print(f"Bot: {bot_response}\n")
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
             
-            # Extract information from conversation after bot response
-            extracted = self._extract_info_from_conversation()
+            # First, try to extract the selected bug ID if not already selected
+            if self.selected_bug_id is None and self.developer_id is not None:
+                # Look for bug ID in recent conversation
+                selected = self._extract_selected_bug_id()
+                if selected:
+                    self.selected_bug_id = selected
             
-            if extracted.get("bug_id"):
-                self.selected_bug_id = extracted["bug_id"]
-            if extracted.get("progress_note"):
-                self.progress_note = extracted["progress_note"]
-            if extracted.get("status"):
-                self.status = extracted["status"]
-            if extracted.get("solved") is not None:
-                self.solved = extracted["solved"]
+            # Extract information from conversation after bot response
+            # Only extract if we've already selected a bug
+            if self.selected_bug_id is not None:
+                extracted = self._extract_info_from_conversation()
+                
+                # Update all fields (LLM will return null if not yet answered)
+                if extracted.get("progress_note"):
+                    self.progress_note = extracted["progress_note"]
+                if extracted.get("status"):
+                    self.status = extracted["status"]
+                if extracted.get("solved") is not None:
+                    self.solved = extracted["solved"]
             
             # Check if we have a complete report
             if (self.developer_id and self.selected_bug_id and 

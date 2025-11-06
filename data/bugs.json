@@ -11,9 +11,9 @@
     "bug_id": 2,
     "description": "Database connection timeout after 30 seconds of inactivity",
     "assigned_dev": 2,
-    "status": "In Progress",
-    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling",
-    "solved": false
+    "status": "Resolved",
+    "progress_notes": "2024-01-20 08:45:00 - Analyzed database connection logs\n2024-01-20 11:30:00 - Identified timeout configuration issue\n2024-01-21 09:15:00 - Started implementing connection pooling\n2025-11-05 19:35:29 - Increased the timeout to sustain over the user session\n2025-11-05 19:37:37 - Increased timeout value significantly\n2025-11-05 19:41:53 - Increased timeout value significantly\n2025-11-05 19:42:35 - Increased timeout value significantly",
+    "solved": true
   },
   {
     "bug_id": 3,
@@ -68,7 +68,7 @@
     "description": "File upload progress bar shows incorrect percentage",
     "assigned_dev": 2,
     "status": "Open",
-    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 19:34:27 - Yes",
+    "progress_notes": "2024-01-27 10:00:00 - Reproduced progress bar issue\n2024-01-27 11:30:00 - Found calculation error in progress logic\n2025-11-05 19:34:27 - Yes\n2025-11-05 19:35:08 - Yes\n2025-11-05 19:37:30 - Yes",
     "solved": false
   },
   {
