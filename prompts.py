@@ -53,25 +53,36 @@ class ExtractionPrompts:
     """Prompts for extracting structured information from conversations."""
     
     @staticmethod
-    def get_bug_info_extraction_prompt(selected_bug_id: int) -> str:
-        """Prompt for extracting bug information from user responses. Use {conv_text} placeholder."""
-        template = """From this conversation, extract information the user said about Bug ID %d.
+    def get_final_analysis_prompt() -> str:
+        """Prompt for final analysis of entire conversation to extract bug reports."""
+        return """Analyze the complete conversation below and extract ALL bug reports the user submitted.
 
-Recent Conversation:
-{conv_text}
+CONVERSATION:
+{conversation_text}
 
-Return ONLY valid JSON (no other text):
-{{
-  "progress_note": "<user's exact words about work done, or null>",
-  "status": "<one of: Open, In Progress, Testing, Resolved, Closed, or null>",
-  "solved": <true/false/null>
-}}
+For EACH bug the user reported on, extract:
+1. Bug ID (number)
+2. Progress Note (what work they said they did - EXACT user words, not bot summary)
+3. Status (what the user said: Open, In Progress, Testing, Resolved, or Closed)
+4. Solved (boolean - true if user said yes/solved/fixed, false if said no/not solved)
 
-Rules:
-- progress_note: ONLY user's exact words in response to "what work have you done" - null if not mentioned
-- status: ONLY what the user actually said - null if not answered
-- solved: true if user said yes/solved/fixed/working, false if no/not solved, null if not answered"""
-        return template % selected_bug_id
+Return ONLY valid JSON array:
+[
+  {{
+    "bug_id": <number>,
+    "progress_note": "<user's exact work description>",
+    "status": "<Open|In Progress|Testing|Resolved|Closed>",
+    "solved": <true|false>
+  }}
+]
+
+CRITICAL RULES:
+- Extract ONLY what the USER said, not bot descriptions
+- progress_note: User's exact words about work done
+- status: One of the 5 valid statuses based on user's answer
+- solved: true ONLY if user explicitly said yes/solved/fixed/working, false if no/not solved
+- Return as JSON array - can contain 0-N bug reports
+- If user didn't complete reporting on a bug, exclude it from results"""
 
     @staticmethod
     def get_bug_id_extraction_prompt() -> str:
@@ -103,11 +114,11 @@ Return JSON matching this schema:
 }}
 
 Determine if we should END the bug reporting session:
-- should_end: true if user said "no" to "anything else", "done", "that's it", "i'm done", "nothing more", "no", etc.
-- should_end: false if user wants to continue or hasn't clearly indicated ending
+- should_end: true if user said no to anything else, done, nothing more
+- should_end: false if user wants to continue or not clearly indicated ending
 - reason: brief explanation
 
-Only set should_end to true if user clearly indicated they're done reporting."""
+Only set should_end to true if user clearly indicated done reporting."""
 
 
 class ToolDefinitions:

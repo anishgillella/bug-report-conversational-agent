@@ -177,80 +177,61 @@ class BugReportingBot:
         
         return assistant_message.content or ""
     
-    def _extract_selected_bug_id(self) -> Optional[int]:
-        """Extract which bug the user selected from the conversation."""
-        # Get recent messages
-        recent_messages = self.messages[-6:]
-        
+    def _analyze_conversation_for_reports(self) -> List[BugReport]:
+        """
+        FINAL ANALYSIS: Analyze entire conversation and extract all completed bug reports.
+        This is done ONCE at the end, after conversation is complete.
+        """
+        # Build full conversation text
         conv_text = ""
-        for msg in recent_messages:
+        for msg in self.messages:
             role = msg.get("role", "").upper()
             content = msg.get("content", "").strip()
             conv_text += f"{role}: {content}\n"
         
-        prompt = ExtractionPrompts.get_bug_id_extraction_prompt().format(conv_text=conv_text)
+        # Get final analysis prompt
+        analysis_prompt = ExtractionPrompts.get_final_analysis_prompt().format(
+            conversation_text=conv_text
+        )
         
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
-                messages=[{"role": "user", "content": prompt}],
-                max_tokens=50
+                messages=[{"role": "user", "content": analysis_prompt}],
+                max_tokens=Config.EXTRACTION_MAX_TOKENS * 2  # More tokens for multiple reports
             )
             
             extracted_text = response.choices[0].message.content.strip()
             
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
+            # Find and parse JSON array
+            start = extracted_text.find('[')
+            end = extracted_text.rfind(']') + 1
             
             if start >= 0 and end > start:
                 json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                return parsed.get("bug_id")
+                parsed_list = json.loads(json_str)
+                
+                # Convert to BugReport objects
+                reports = []
+                for item in parsed_list:
+                    try:
+                        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                        report = BugReport(
+                            bug_id=item['bug_id'],
+                            progress_note=f"{timestamp} - {item['progress_note']}",
+                            status=item['status'],
+                            solved=item['solved']
+                        )
+                        reports.append(report)
+                    except (KeyError, ValueError):
+                        # Skip invalid reports
+                        pass
+                
+                return reports
         except Exception:
             pass
         
-        return None
-    
-    def _extract_info_from_conversation(self) -> ExtractedBugInfo:
-        """Extract bug report info from conversation history using Pydantic model."""
-        # Only extract from the MOST RECENT part of the conversation
-        recent_messages = self.messages[-10:]
-        
-        conv_text = ""
-        for msg in recent_messages:
-            role = msg.get("role", "").upper()
-            content = msg.get("content", "").strip()
-            conv_text += f"{role}: {content}\n"
-        
-        # Get extraction prompt from prompts module
-        extraction_prompt = ExtractionPrompts.get_bug_info_extraction_prompt(
-            self.selected_bug_id
-        ).format(conv_text=conv_text)
-        
-        try:
-            response = self.client.chat.completions.create(
-                model=self.model,
-                messages=[{"role": "user", "content": extraction_prompt}],
-                max_tokens=Config.EXTRACTION_MAX_TOKENS
-            )
-            
-            extracted_text = response.choices[0].message.content.strip()
-            
-            # Find and parse JSON
-            start = extracted_text.find('{')
-            end = extracted_text.rfind('}') + 1
-            
-            if start >= 0 and end > start:
-                json_str = extracted_text[start:end]
-                parsed = json.loads(json_str)
-                # Use Pydantic model for validation and type conversion
-                return ExtractedBugInfo(**parsed)
-        except Exception:
-            pass
-        
-        # Return empty model with all None values
-        return ExtractedBugInfo()
+        return []
     
     def _should_end_conversation(self) -> bool:
         """Let LLM detect if conversation should end using Pydantic model."""
@@ -346,50 +327,12 @@ class BugReportingBot:
             print(f"Bot: {bot_response}\n")
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
             
-            # First, try to extract the selected bug ID if not already selected
-            if self.selected_bug_id is None and self.developer_id is not None:
-                # Look for bug ID in recent conversation
-                selected = self._extract_selected_bug_id()
-                if selected:
-                    self.selected_bug_id = selected
-            
-            # Extract information from conversation after bot response
-            # Only extract if we've already selected a bug
-            if self.selected_bug_id is not None:
-                extracted = self._extract_info_from_conversation()
-                
-                # Update all fields using Pydantic model (None means not yet answered)
-                if extracted.progress_note:
-                    self.progress_note = extracted.progress_note
-                if extracted.status:
-                    self.status = extracted.status
-                if extracted.solved is not None:
-                    self.solved = extracted.solved
-            
-            # Check if we have a complete report (all 3 fields filled)
-            if (self.developer_id and self.selected_bug_id and 
-                self.progress_note and self.status is not None and 
-                self.solved is not None):
-                
-                # Save to completed reports if not already there
-                if self.selected_bug_id not in [r.bug_id for r in self.completed_reports]:
-                    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-                    report = BugReport(
-                        bug_id=self.selected_bug_id,
-                        progress_note=f"{timestamp} - {self.progress_note}",
-                        status=self.status,
-                        solved=self.solved
-                    )
-                    self.completed_reports.append(report)
-                    
-                    # Reset for next bug
-                    self.selected_bug_id = None
-                    self.progress_note = None
-                    self.status = None
-                    self.solved = None
-            
-            # Check if user wants to end (AFTER extracting all info)
+            # Check if user wants to end conversation
+            # NO extraction during conversation - only analyze at the end
             if self._should_end_conversation():
+                # FINAL ANALYSIS: Analyze entire conversation and extract all reports
+                self.completed_reports = self._analyze_conversation_for_reports()
+                
                 # Show final summary to user
                 summary = self._get_final_summary()
                 print(f"Bot: {summary}\n")
