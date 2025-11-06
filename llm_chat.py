@@ -182,7 +182,6 @@ class BugReportingBot:
         FINAL ANALYSIS: Analyze entire conversation and extract all completed bug reports.
         This is done ONCE at the end, after conversation is complete.
         """
-        print("\n[DEBUG] Starting final analysis...")
         # Build full conversation text
         conv_text = ""
         for msg in self.messages:
@@ -195,7 +194,6 @@ class BugReportingBot:
             conversation_text=conv_text
         )
         
-        
         try:
             response = self.client.chat.completions.create(
                 model=self.model,
@@ -204,7 +202,6 @@ class BugReportingBot:
             )
             
             extracted_text = response.choices[0].message.content.strip()
-            print(f"[DEBUG_EXTRACT] LLM returned: {extracted_text}")
             
             # Find and parse JSON array - handle markdown code blocks
             # Remove markdown code blocks if present
@@ -321,7 +318,7 @@ class BugReportingBot:
             try:
                 user_input = input("You: ").strip()
             except EOFError:
-                # End of input stream - graceful exit
+                # End of input stream - run final analysis before breaking
                 break
             
             if user_input.lower() == "quit":
@@ -336,22 +333,21 @@ class BugReportingBot:
             
             # Check if user wants to end conversation BEFORE getting bot response
             # This way we detect end signals before bot generates farewell
-            end_detected = self._should_end_conversation()
-            print(f"[DEBUG_LOOP] End detection returned: {end_detected}")
-            if end_detected:
-                # FINAL ANALYSIS: Analyze entire conversation and extract all reports
-                self.completed_reports = self._analyze_conversation_for_reports()
-                
-                # Show final summary to user
-                summary = self._get_final_summary()
-                print(f"Bot: {summary}\n")
-                self.trace.append({"type": "message", "role": "assistant", "content": summary})
+            if self._should_end_conversation():
                 break
             
             # Get next bot response (only if conversation hasn't ended)
             bot_response = self.get_bot_response()
             print(f"Bot: {bot_response}\n")
             self.trace.append({"type": "message", "role": "assistant", "content": bot_response})
+        
+        # After loop ends (either naturally or from break), run final analysis
+        self.completed_reports = self._analyze_conversation_for_reports()
+        
+        # Show final summary to user
+        summary = self._get_final_summary()
+        print(f"Bot: {summary}\n")
+        self.trace.append({"type": "message", "role": "assistant", "content": summary})
     
     def get_structured_output(self) -> ConversationOutput:
         """Generate final structured output."""
